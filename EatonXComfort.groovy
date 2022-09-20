@@ -16,9 +16,9 @@ preferences {
     section("xComfort Device Data") {
         input "URI", "text", title: "URI", required: true
         input "username", "text", title: "Username", required: true
-        input "pass", "text", title: "Password", required: true
-        input "zone", "text", title: "Zone", required: false
-        input "devID", "text", title: "Device ID", required: false
+        input "pass", "password", title: "Password", required: true
+        input "zone", "text", title: "Zone", required: true
+        input "devID", "text", title: "Device ID", required: true
         input name: "logEnable", type: "bool", title: "Enable debug logging", defaultValue: true
     }
 }
@@ -41,7 +41,6 @@ def parse(String description) {
 def on() {
     if (logEnable) log.debug "Switching on the device, [${settings.devID}] on the zone, [${settings.zone}]"
     Map httpParams = prepareHttpParams("on")
-    if (logEnable) log.debug "HTTP param received"
     try {
         httpPostJson(httpParams) { resp ->
             if (resp.success) {
@@ -94,6 +93,6 @@ def prepareHttpParams(state) {
             "path"   : path,
             "body"   : content
     ]
-    if (logEnable) log.debug "HTTP output: ${httpParams}"
+    if (logEnable) log.debug "List of HTTP parameters : ${httpParams}"
     return httpParams
 }
