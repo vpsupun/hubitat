@@ -17,8 +17,8 @@ preferences {
         input "URI", "text", title: "URI", required: true
         input "username", "text", title: "Username", required: true
         input "pass", "password", title: "Password", required: true
-        input "zone", "text", title: "Zone", required: true
-        input "devID", "text", title: "Device ID", required: true
+        input "zone", "text", title: "Zone Id", required: false
+        input "devId", "text", title: "Device Id", required: false
         input name: "logEnable", type: "bool", title: "Enable debug logging", defaultValue: true
     }
 }
@@ -39,8 +39,29 @@ def parse(String description) {
 }
 
 def on() {
-    if (logEnable) log.debug "Switching on the device, [${settings.devID}] on the zone, [${settings.zone}]"
-    Map httpParams = prepareHttpParams("on")
+    if (settings.zone == null) {
+        getZones()
+    } else if (settings.devId == null) {
+        getDevices()
+    } else {
+        triggerOn()
+    }
+}
+
+def off() {
+    if (settings.zone == null) {
+        getZones()
+    } else if (settings.devId == null) {
+        getDevices()
+    } else {
+        triggerOff()
+    }
+}
+
+def triggerOn() {
+    if (logEnable) log.debug "Switching on the device, [${settings.devId}] on the zone, [${settings.zone}]"
+    List params = ["${settings.zone}", "${settings.devId}", "on"]
+    Map httpParams = prepareHttpParams("StatusControlFunction/controlDevice",params)
     try {
         httpPostJson(httpParams) { resp ->
             if (resp.success) {
@@ -54,9 +75,10 @@ def on() {
     }
 }
 
-def off() {
-    if (logEnable) log.debug "Switching off the device, [${settings.devID}] on the zone, [${settings.zone}]"
-    Map httpParams = prepareHttpParams("off")
+def triggerOff() {
+    if (logEnable) log.debug "Switching off the device, [${settings.devId}] on the zone, [${settings.zone}]"
+    List params = ["${settings.zone}", "${settings.devId}", "off"]
+    Map httpParams = prepareHttpParams("StatusControlFunction/controlDevice", params)
     try {
         httpPostJson(httpParams) { resp ->
             if (resp.success) {
@@ -70,17 +92,52 @@ def off() {
     }
 }
 
-def prepareHttpParams(state) {
-    def path = "/remote/json-rpc"
+def getZones() {
+    String method = "HFM/getZones"
+    List params = []
+    Map httpParams = prepareHttpParams(method, params)
+    try {
+        httpPostJson(httpParams) { resp ->
+            if (resp.success) {
+                if (logEnable) log.debug "Zone data : ${resp.data}"
+            }
+        }
+    } catch (Exception e) {
+        log.warn "Call to off failed: ${e.message}"
+    }
+}
+
+def getDevices(String zone = null) {
+    if (settings.zone == null) {
+        if (logEnable) log.debug "Zone id is required to retried device ids. Fetching zone details..."
+        getZones()
+    } else {
+        String method = "StatusControlFunction/getDevices"
+        List params = ["${settings.zone}", ""]
+        Map httpParams = prepareHttpParams(method, params)
+        try {
+            httpPostJson(httpParams) { resp ->
+                if (resp.success) {
+                    if (logEnable) log.debug "Device data in the zone ${settings.zone}: ${resp.data}"
+                }
+            }
+        } catch (Exception e) {
+            log.warn "Call to off failed: ${e.message}"
+        }
+    }
+}
+
+def prepareHttpParams(String method, List params = []) {
+    String path = "/remote/json-rpc"
     def pair = "$username:$pass"
     def basicAuth = pair.bytes.encodeBase64();
 
     Map<String, Object> content = [
             "jsonrpc": "2.0",
-            "method" : "StatusControlFunction/controlDevice",
             "id"     : 1
     ]
-    content.params = ["${settings.zone}", "${settings.devID}", "${state}"]
+    content.method = method
+    content.params = params
 
     Map<String> headers = [
             "Content-Type": "application/json"
