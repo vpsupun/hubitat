@@ -5,7 +5,7 @@
  *
  */
 metadata {
-    definition(name: "Eaton XComfort Switch", namespace: "community", author: "Community", importUrl: "https://raw.githubusercontent.com/hubitat/HubitatPublic/master/examples/drivers/httpGetSwitch.groovy") {
+    definition(name: "Eaton XComfort Switch", namespace: "community", author: "Supun Vidana Pathiranage", importUrl: "https://raw.githubusercontent.com/vpsupun/hubitat-eaton-xcomfort/master/EatonXComfort.groovy") {
         capability "Actuator"
         capability "Switch"
         capability "Sensor"
