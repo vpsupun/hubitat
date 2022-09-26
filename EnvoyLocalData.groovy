@@ -3,6 +3,8 @@
  *
  * Hubitat connecting to the Enphase Envoy-S (metered) with new firmware that requires a token to access local data
  *
+ * Production output from Envoy : [wattHoursToday:xx, wattHoursSevenDays:xx, wattHoursLifetime:xx, wattsNow:xx]
+ *
  */
 metadata {
     definition(name: "Enphase Envoy-S Production Data", namespace: "community", author: "Supun Vidana Pathiranage", importUrl: "https://raw.githubusercontent.com/vpsupun/hubitat-eaton-xcomfort/master/EnvoyLocalData.groovy") {
@@ -31,6 +33,18 @@ preferences {
     }
 }
 
+def logsOff() {
+    log.warn "debug logging disabled..."
+    device.updateSetting("logEnable", [value: "false", type: "bool"])
+}
+
+def updated() {
+    log.info "updated..."
+    log.warn "debug logging is: ${logEnable == true}"
+    setPolling()
+    if (logEnable) runIn(1800, logsOff)
+}
+
 void poll() {
     pullData()
 }
@@ -39,145 +53,173 @@ void refresh() {
     pullData()
 }
 
-def pullData() {
-    if (logEnable) log.debug "Pulling data..."
+void pullData() {
     String production_url = "https://" + settings.ip + "/api/v1/production"
+    Map production_data = [:]
+
+    if (logEnable) log.debug "Pulling data..."
     String token = getToken()
     if (token != null) {
         Map<String> headers = [
-                "Content-Type" : "application/json",
                 "Authorization": "Basic " + token
         ]
         Map<String, Object> httpParams = [
-                "uri"    : production_url,
-                "headers": headers
+                "uri"               : production_url,
+                "contentType"       : "application/json",
+                "requestContentType": "application/json",
+                "ignoreSSLIssues"   : true,
+                "headers"           : headers
         ]
 
-        def response = myHttpGet(httpParams)
+        try {
+            httpGet(httpParams) { resp ->
+                if (logEnable) {
+                    if (resp.data) log.debug "${resp.data}"
+                }
+                if (resp.success) {
+                    production_data = resp.data
+                }
+            }
+        } catch (Exception e) {
+            log.warn "HTTP get failed: ${e.message}"
+        }
 
-        if (response.wattHoursToday) sendEvent(name: "energy_today", value: response.wattHoursToday, displayed: false)
-        if (response.wattHoursSevenDays) sendEvent(name: "energy_last7days", value: response.wattHoursSevenDays, displayed: false)
-        if (response.wattHoursLifetime) sendEvent(name: "energy_life", value: response.wattHoursLifetime, displayed: false)
-        if (response.wattsNow) sendEvent(name: "energy_now", value: response.wattsNow, displayed: false)
+        sendEvent(name: "energy_today", value: production_data?.wattHoursToday, displayed: false)
+        sendEvent(name: "energy_last7days", value: production_data?.wattHoursSevenDays, displayed: false)
+        sendEvent(name: "energy_life", value: production_data?.wattHoursLifetime, displayed: false)
+        sendEvent(name: "energy_now", value: production_data?.wattsNow, displayed: false)
     } else
         log.warn "Unable to get a valid token. Aborting..."
 }
 
 def validateToken(String token) {
-    if (logEnable) log.debug "Validating the token"
+    boolean valid_token = false
+    String response
     String token_check_url = "https://" + settings.ip + "/auth/check_jwt"
+
+    if (logEnable) log.debug "Validating the token"
     Map<String> headers = [
-            "Content-Type" : "application/json",
             "Authorization": "Basic " + token
     ]
     Map<String, Object> httpParams = [
-            "uri"    : token_check_url,
-            "headers": headers
+            "uri"               : token_check_url,
+            "contentType"       : "text/html",
+            "requestContentType": "application/json",
+            "ignoreSSLIssues"   : true,
+            "headers"           : headers
     ]
-
-    def response = myHttpGet(httpParams)
+    try {
+        httpGet(httpParams) { resp ->
+            if (logEnable) {
+                if (resp.data) log.debug "${resp.data}"
+            }
+            if (resp.success) {
+                response = resp.data
+            }
+        }
+    } catch (Exception e) {
+        log.warn "HTTP get failed: ${e.message}"
+    }
     if (response.contains("Valid token.")) {
-        return true
-    } else
-        return false
+        valid_token = true
+    }
+    return valid_token
 }
 
-def getSession() {
-    if (logEnable) log.debug "Generating a session"
+String getSession() {
+    String session
     String login_url = "https://enlighten.enphaseenergy.com/login/login.json"
+
+    if (logEnable) log.debug "Generating a session"
     Map<String> data = [
             "user[email]"   : settings.email,
             "user[password]": settings.pass
     ]
     Map<String, Object> httpParams = [
-            "uri"    : login_url,
-            "body"   : data
+            "uri" : login_url,
+            "body": data
     ]
-
-    def response = myHttpPost(httpParams)
-    if (logEnable) log.debug "Session 1: ${response}"
-    return response
-}
-
-def getToken() {
-    if (logEnable) log.debug "Retrieving the token"
-    if (device.currentValue(jwt_token) != null && validateToken(currentValue(jwt_token))) {
-        return currentValue(jwt_token)
-    } else {
-        String session = getSession()
-        String token = generateToken(session)
-        if (token != null && validateToken(token)) {
-            sendEvent(name: "jwt_token", value: token, displayed: false)
-            return token
-        } else {
-            log.warn "Token generation has been failed or generated token is not valid."
-            return null
-        }
-    }
-}
-
-def generateToken(String session_data) {
-    if (logEnable) log.debug "Generating a new token"
-    if (logEnable) log.debug "Session : ${session_data}"
-    String tokenUrl = "https://entrez.enphaseenergy.com/tokens"
-    if (session_data != null) {
-        String session_id = session_data.session_id
-        Map<String> data = [
-                "session_id": session_id,
-                "serial_num": settings.serial,
-                "username"  : settings.email
-        ]
-        Map<String> headers = [
-                "Content-Type": "application/json"
-        ]
-        Map<String, Object> httpParams = [
-                "uri"    : tokenUrl,
-                "headers": headers,
-                "body"   : data
-        ]
-        def response = myHttpPost(httpParams)
-        return response
-    } else {
-        log.warn "Session ID was null. Enable debug logs to investigate."
-        return null
-    }
-}
-
-def myHttpPost(Map httpParams) {
-    if (logEnable) log.debug "HTTP params: ${httpParams}"
     try {
         httpPost(httpParams) { resp ->
             if (logEnable) {
                 if (resp.data) log.debug "${resp.data}"
             }
             if (resp.success) {
-                if (logEnable) log.debug "Returning: ${resp.data}"
-                return resp.data
-            } else {
-                return "XX"
+                session = resp.data?.session_id
             }
         }
-    } catch(Exception e) {
+    } catch (Exception e) {
         log.warn "HTTP post failed: ${e.message}"
-        return null
     }
+
+    if (logEnable) log.debug "Sessin Id: ${session}"
+    return session
 }
 
-def myHttpGet(Map httpParams) {
+String getToken() {
+    String valid_token
+    String current_token = device.currentValue("jwt_token", true)
+
+    if (logEnable) log.debug "Retrieving the token"
+    if (current_token != null && validateToken(current_token)) {
+        if (logEnable) log.debug "Current token is still valid. Using it. "
+        valid_token = current_token
+    } else {
+        if (logEnable) log.debug "Current token is still expired. Generating a new one."
+        String session = getSession()
+        if (session != null) {
+            String token_generated = generateToken(session)
+            if (token_generated != null && validateToken(token_generated)) {
+                sendEvent(name: "jwt_token", value: token_generated, displayed: false)
+                valid_token = token_generated
+            } else {
+                log.warn "Generated token is not valid. Investigate with debug logs"
+            }
+        } else {
+            log.warn "Generated token is null. Investigate with debug logs"
+        }
+    }
+    return valid_token
+}
+
+String generateToken(String session_id) {
+    String token
+    String tokenUrl = "https://entrez.enphaseenergy.com/tokens"
+
+    if (logEnable) log.debug "Generating a new token"
+    Map<String> data = [
+            "session_id": session_id,
+            "serial_num": settings.serial,
+            "username"  : settings.email
+    ]
+    Map<String, Object> httpParams = [
+            "uri"               : tokenUrl,
+            "contentType"       : "text/html",
+            "requestContentType": "application/json",
+            "body"              : data
+    ]
     if (logEnable) log.debug "HTTP params: ${httpParams}"
     try {
-        httpGetJson(httpParams) { resp ->
+        httpPost(httpParams) { resp ->
             if (logEnable) {
-                if (resp.data) log.debug "${resp.data}"
+                if (resp.data) log.debug "HTTP response: ${resp.data}"
             }
             if (resp.success) {
-                return resp.data
-            } else {
-                return null
+                token = resp.data
             }
         }
-    } catch(Exception e) {
-        log.warn "HTTP get failed: ${e.message}"
-        return null
+    } catch (Exception e) {
+        log.warn "HTTP post failed: ${e.message}"
     }
+    if (logEnable) log.debug "Generated token : ${token}"
+    return token
+}
+
+void setPolling() {
+    unschedule()
+    def sec = Math.round(Math.floor(Math.random() * 60))
+    def min = Math.round(Math.floor(Math.random() * settings.polling.toInteger()))
+    String cron = "${sec} ${min}/${settings.polling.toInteger()} * * * ?" // every N min
+    log.warn "startPolling: schedule('$cron', pullData)".toString()
+    schedule(cron, pullData)
 }
