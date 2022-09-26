@@ -5,7 +5,17 @@
  *
  * Production output from Envoy : [wattHoursToday:xx, wattHoursSevenDays:xx, wattHoursLifetime:xx, wattsNow:xx]
  *
+ *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in
+ *  compliance with the License. You may obtain a copy of the License at:
+ *
+ *			http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *	Unless required by applicable law or agreed to in writing, software distributed under the License is distributed
+ *	on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
+ *	for the specific language governing permissions and limitations under the License.
+ *
  */
+
 metadata {
     definition(name: "Enphase Envoy-S Production Data", namespace: "community", author: "Supun Vidana Pathiranage", importUrl: "https://raw.githubusercontent.com/vpsupun/hubitat-eaton-xcomfort/master/EnvoyLocalData.groovy") {
         capability "Sensor"
@@ -33,12 +43,12 @@ preferences {
     }
 }
 
-def logsOff() {
+void logsOff() {
     log.warn "debug logging disabled..."
     device.updateSetting("logEnable", [value: "false", type: "bool"])
 }
 
-def updated() {
+void updated() {
     log.info "updated..."
     log.warn "debug logging is: ${logEnable == true}"
     setPolling()
@@ -92,7 +102,7 @@ void pullData() {
         log.warn "Unable to get a valid token. Aborting..."
 }
 
-def validateToken(String token) {
+boolean isValidToken(String token) {
     boolean valid_token = false
     String response
     String token_check_url = "https://" + settings.ip + "/auth/check_jwt"
@@ -161,7 +171,7 @@ String getToken() {
     String current_token = device.currentValue("jwt_token", true)
 
     if (logEnable) log.debug "Retrieving the token"
-    if (current_token != null && validateToken(current_token)) {
+    if (current_token != null && isValidToken(current_token)) {
         if (logEnable) log.debug "Current token is still valid. Using it. "
         valid_token = current_token
     } else {
@@ -169,7 +179,7 @@ String getToken() {
         String session = getSession()
         if (session != null) {
             String token_generated = generateToken(session)
-            if (token_generated != null && validateToken(token_generated)) {
+            if (token_generated != null && isValidToken(token_generated)) {
                 sendEvent(name: "jwt_token", value: token_generated, displayed: false)
                 valid_token = token_generated
             } else {

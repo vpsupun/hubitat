@@ -23,22 +23,22 @@ preferences {
     }
 }
 
-def logsOff() {
-    log.warn "debug logging disabled..."
+void logsOff() {
+    log.warn "Debug logging disabled..."
     device.updateSetting("logEnable", [value: "false", type: "bool"])
 }
 
-def updated() {
-    log.info "updated..."
-    log.warn "debug logging is: ${logEnable == true}"
+void updated() {
+    log.info "Updated..."
+    log.warn "Debug logging is: ${logEnable == true}"
     if (logEnable) runIn(1800, logsOff)
 }
 
-def parse(String description) {
+void parse(String description) {
     if (logEnable) log.debug(description)
 }
 
-def on() {
+void on() {
     if (settings.zone == null) {
         getZones()
     } else if (settings.devId == null) {
@@ -48,7 +48,7 @@ def on() {
     }
 }
 
-def off() {
+void off() {
     if (settings.zone == null) {
         getZones()
     } else if (settings.devId == null) {
@@ -61,7 +61,7 @@ def off() {
 def triggerOn() {
     if (logEnable) log.debug "Switching on the device, [${settings.devId}] on the zone, [${settings.zone}]"
     List params = ["${settings.zone}", "${settings.devId}", "on"]
-    Map httpParams = prepareHttpParams("StatusControlFunction/controlDevice",params)
+    Map httpParams = prepareHttpParams("StatusControlFunction/controlDevice", params)
     try {
         httpPostJson(httpParams) { resp ->
             if (resp.success) {
@@ -71,7 +71,7 @@ def triggerOn() {
                 if (resp.data) log.debug "${resp.data}"
         }
     } catch (Exception e) {
-        log.warn "Call to off failed: ${e.message}"
+        log.warn "Switch on failed: ${e.message}"
     }
 }
 
@@ -88,7 +88,7 @@ def triggerOff() {
                 if (resp.data) log.debug "${resp.data}"
         }
     } catch (Exception e) {
-        log.warn "Call to off failed: ${e.message}"
+        log.warn "Switch off failed: ${e.message}"
     }
 }
 
@@ -103,7 +103,7 @@ def getZones() {
             }
         }
     } catch (Exception e) {
-        log.warn "Call to off failed: ${e.message}"
+        log.warn "Getting zones failed: ${e.message}"
     }
 }
 
@@ -122,7 +122,7 @@ def getDevices(String zone = null) {
                 }
             }
         } catch (Exception e) {
-            log.warn "Call to off failed: ${e.message}"
+            log.warn "Getting devices failed: ${e.message}"
         }
     }
 }
@@ -140,9 +140,8 @@ def prepareHttpParams(String method, List params = []) {
     content.params = params
 
     Map<String> headers = [
-            "Content-Type": "application/json"
+            "Authorization": "Basic " + basicAuth
     ]
-    headers.Authorization = "Basic " + basicAuth
 
     Map<String, Object> httpParams = [
             "uri"    : settings.URI,
