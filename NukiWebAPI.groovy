@@ -3,7 +3,7 @@
  *
  * Hubitat connecting to the web API of the Nuki to lock, unlock, unlatch and get other data
  *
- * Works with Nuki WiFi devices without the bridge 
+ * Works with Nuki WiFi devices without the bridge
  *
  * Tested : Nuki 3.0 Pro
  *
@@ -32,7 +32,6 @@ metadata {
         command "refresh"
 
         attribute "lastLockStatus", "string"
-        attribute "lastBatteryStatus", "string"
         attribute "lastLockId", "string"
     }
 }
@@ -78,7 +77,8 @@ void lockNGoUnlatch() {
 }
 
 void refresh() {
-    getCurrentStatus()
+    Map lock_data = getCurrentStatus()
+    sendLockEvents(lock_data)
 }
 
 void doorAction(String action) {
@@ -106,10 +106,12 @@ void doorAction(String action) {
 void actionHandler(String action) {
     boolean loop_stop = false
     for (i in 1..5) {
-        String status = getCurrentStatus()
-        switch (status) {
+        Map lock_data = getCurrentStatus()
+        String lock_state = lock_data.lock_state
+        int battery_state = lock_data.battery_state
+        switch (lock_state) {
             case "uncalibrated":
-                log.warn "Lock is ${status}. Calibrate it using the smartphone."
+                log.warn "Lock is ${lock_state}. Calibrate it using the smartphone."
                 loop_stop = true
                 break
             case "motor blocked":
@@ -127,6 +129,7 @@ void actionHandler(String action) {
                 break
         }
         if (loop_stop) {
+            sendLockEvents(lock_data)
             break
         }
         pauseExecution(2000)
@@ -162,9 +165,9 @@ void setLockId() {
         log.warn "Invalid lock name or error on retrieving the lock ID"
 }
 
-String getCurrentStatus() {
+Map getCurrentStatus() {
     Map lock_data = [:]
-    String lock_state
+    Map lock_data_return = [:]
     if (logEnable) log.debug "Refreshing the lock data"
     String lock_id = device.currentValue("lastLockId", true)
     if (lock_id != null) {
@@ -186,13 +189,26 @@ String getCurrentStatus() {
         }
         if (lock_data != [:]) {
             int state = lock_data?.state?.state
-            lock_state = _lockStatus.get(state)
+            String lock_state = _lockStatus.get(state)
             int battery_state = lock_data?.state?.batteryCharge
-            sendEvent(name: "lastLockStatus", value: lock_state, displayed: false)
-            sendEvent(name: "lastBatteryStatus", value: "${battery_state} %", displayed: false)
+            if (device.currentValue("lastLockStatus", true) != lock_state) sendEvent(name: "lastLockStatus", value: lock_state, isStateChange: true)
+
+            lock_data_return.battery_state = battery_state
+            lock_data_return.lock_state = lock_state
         }
     }
-    return lock_state
+    return lock_data_return
+}
+
+void sendLockEvents(Map lock_data) {
+    String lock_state = lock_data.lock_state
+    int battery_state = lock_data.battery_state
+    if (lock_state == "locked" || lock_state == "unlocked") {
+        sendEvent(name: "lock", value: lock_state, isStateChange: true)
+    }
+    if (battery_state >= 0 && battery_state <= 100) {
+        sendEvent(name: "battery", value: battery_state, unit: "%", isStateChange: true)
+    }
 }
 
 Map prepareNukiApi(Map data) {
