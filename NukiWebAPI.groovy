@@ -28,7 +28,6 @@ metadata {
         command "unlock"
         command "unlatch"
         command "lockNGo"
-        command "lockNGoUnlatch"
         command "refresh"
 
         attribute "lastLockStatus", "string"
@@ -72,10 +71,6 @@ void lockNGo() {
     doorAction("lock'n'go")
 }
 
-void lockNGoUnlatch() {
-    doorAction("lock'n'go with unlatch")
-}
-
 void refresh() {
     Map lock_data = getCurrentStatus()
     sendLockEvents(lock_data)
@@ -86,7 +81,7 @@ void doorAction(String action) {
     String lock_id = device.currentValue("lastLockId", true)
     Map<String, Objects> data = [
             "path": "/smartlock/" + lock_id + "/action",
-            "body": ["action": _lockActions[action]]
+            "body": ["action": _lockActions[action].id]
     ]
     Map params = prepareNukiApi(data)
     try {
@@ -108,7 +103,6 @@ void actionHandler(String action) {
     for (i in 1..5) {
         Map lock_data = getCurrentStatus()
         String lock_state = lock_data.lock_state
-        int battery_state = lock_data.battery_state
         switch (lock_state) {
             case "uncalibrated":
                 log.warn "Lock is ${lock_state}. Calibrate it using the smartphone."
@@ -122,7 +116,8 @@ void actionHandler(String action) {
                 log.warn "Undefined state. Try again later."
                 loop_stop = true
                 break
-            case action:
+            case _lockActions[action].end_state:
+                if (logEnable) log.debug "Action is completed : ${action}"
                 loop_stop = true
                 break
             default:
@@ -245,9 +240,8 @@ Map prepareNukiApi(Map data) {
 ]
 
 @Field static Map _lockActions = [
-        "unlock"                : 1,
-        "lock"                  : 2,
-        "unlatch"               : 3,
-        "lock'n'go"             : 4,
-        "lock'n'go with unlatch": 5
+        "unlock"                : ["id": 1, "end_state": "unlocked"],
+        "lock"                  : ["id": 2, "end_state": "locked"],
+        "unlatch"               : ["id": 3, "end_state": "unlatched"],
+        "lock'n'go"             : ["id": 4, "end_state": "unlocked (lock'n'go)"]
 ]

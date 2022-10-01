@@ -97,7 +97,8 @@ void pullData() {
         sendEvent(name: "energy_today", value: production_data?.wattHoursToday, displayed: false)
         sendEvent(name: "energy_last7days", value: production_data?.wattHoursSevenDays, displayed: false)
         sendEvent(name: "energy_life", value: production_data?.wattHoursLifetime, displayed: false)
-        sendEvent(name: "energy_now", value: production_data?.wattsNow, displayed: false)
+        sendEvent(name: "power", value: production_data?.wattsNow, unit: "w", isStateChange: true)
+
     } else
         log.warn "Unable to get a valid token. Aborting..."
 }
