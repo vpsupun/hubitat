@@ -1,0 +1,19 @@
+{
+  "version": "0.0.1",
+  "comment": "Version information",
+  "author": "Supun Vidana Pathiranage",
+  "driver": {
+    "EatonXComfort": {
+      "version": "0.0.4",
+      "updateInfo": "<br>- Implemented version check"
+    },
+    "EnvoyLocalData": {
+      "version": "0.0.3",
+      "updateInfo": "<br>- Implemented version check"
+    },
+    "NukiWebAPI": {
+      "version": "0.0.3",
+      "updateInfo": "<br>- Implemented version check"
+    }
+  }
+}

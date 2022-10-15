@@ -13,11 +13,19 @@
  *	for the specific language governing permissions and limitations under the License.
  *
  */
+
+void setVersion(){
+    state.version = "0.0.3"
+    state.appName = "EatonXComfort"
+}
+
 metadata {
     definition(name: "Eaton XComfort Switch", namespace: "community", author: "Supun Vidana Pathiranage", importUrl: "https://raw.githubusercontent.com/vpsupun/hubitat-eaton-xcomfort/master/EatonXComfort.groovy") {
         capability "Actuator"
         capability "Switch"
         capability "Sensor"
+        capability "Refresh"
+        capability "Polling"
     }
 }
 
@@ -160,4 +168,53 @@ def prepareHttpParams(String method, List params = []) {
     ]
     if (logEnable) log.debug "List of HTTP parameters : ${httpParams}"
     return httpParams
+}
+
+// Check Version   ***** with great thanks and acknowledgment to Cobra (github CobraVmax) for his original code **************
+void checkVersion(){
+    updateCheck()
+    schedule("0 0 18 1/1 * ? *", updateCheck) // Cron schedule
+}
+
+void updateCheck(){
+    setVersion()
+    String updateMsg = ""
+    def paramsUD = [uri: "https://raw.githubusercontent.com/vpsupun/hubitat-eaton-xcomfort/master//resources/version.json", contentType: "application/json; charset=utf-8"]
+    try {
+        httpGet(paramsUD) { respUD ->
+            if (logEnable) log.debug " Version Checking - Response Data: ${respUD.data}"
+            String driverInfo = respUD.data.driver.${state.InternalName}
+            String newVerRaw = driverInfo.version as String
+            String newVer = newVerRaw.replace(".", "")
+            String currentVer = state.version.replace(".", "")
+            String updateInfo = driverInfo.updateInfo
+            switch (newVer) {
+                case newVer == "NLS":
+                    updateMsg = "<b>** This driver is no longer supported by the auther, ${state.author} **</b>"
+                    log.warn "** This driver is no longer supported by the auther, ${state.author} **"
+                    break;
+                case newVer == "BETA":
+                    updateMsg = "<b>** This driver is still in beta **</b>"
+                    log.warn "** This driver is still in beta **"
+                    break;
+                case currentVer < newVer:
+                    updateMsg = "<b>** A new version is availabe (version: ${newVerRaw}) **</b>"
+                    log.warn "** A new version is availabe (version: ${newVerRaw}) **"
+                    state.newVersionInfo = updateInfo
+                    break;
+                case currentVer > newVer:
+                    updateMsg = "<b>** You are using a test version of this driver (version: ${currentVer}) **</b>"
+                    log.warn "** You are using a test version of this driver (version: ${currentVer}) **"
+                    break;
+                default :
+                    updateMsg = "up to date"
+                    log.info "You are using the current version of this driver"
+            }
+            state.author = respUD.data.author
+            state.versionInfo = updateMsg
+        }
+    }
+    catch (e) {
+        log.error "Something went wrong while fetching the version information ${e}"
+    }
 }
