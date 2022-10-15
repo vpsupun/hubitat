@@ -49,6 +49,7 @@ void updated() {
     log.info "Updated..."
     log.warn "Debug logging is: ${logEnable == true}"
     if (logEnable) runIn(1800, logsOff)
+    checkVersion()
 }
 
 void parse(String description) {
