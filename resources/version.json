@@ -3,9 +3,13 @@
   "comment": "Version information",
   "author": "Supun Vidana Pathiranage",
   "driver": {
-    "EatonXComfort": {
+    "EatonXComfortSwitch": {
       "version": "0.0.4",
-      "updateInfo": "<br>- Implemented version check"
+      "updateInfo": "<br>- Auto discover zone and device ID"
+    },
+    "EatonXComfortDimmer": {
+      "version": "0.0.4",
+      "updateInfo": "<br>- Auto discover zone and device ID"
     },
     "EnvoyLocalData": {
       "version": "0.0.3",
