@@ -18,7 +18,7 @@ import groovy.json.*
 import groovy.transform.Field
 
 void setVersion(){
-    state.version = "0.0.3"
+    state.version = "0.0.4"
     state.appName = "EatonXComfortDimmer"
 }
 
