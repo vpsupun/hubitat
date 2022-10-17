@@ -19,19 +19,22 @@
  */
 import groovy.transform.Field
 
+void setVersion(){
+    state.version = "0.0.3"
+    state.appName = "NukiWebAPI"
+}
+
 metadata {
     definition(name: "Nuki Web API", namespace: "community", author: "Supun Vidana Pathiranage", importUrl: "https://raw.githubusercontent.com/vpsupun/hubitat-eaton-xcomfort/master/NukiWebAPI.groovy") {
         capability "Battery"
         capability "Lock"
+        capability "Refresh"
+        capability "Polling"
 
         command "lock"
         command "unlock"
         command "unlatch"
         command "lockNGo"
-        command "refresh"
-
-        attribute "lastLockStatus", "string"
-        attribute "lastLockId", "string"
     }
 }
 
@@ -39,6 +42,7 @@ preferences {
     section("URI Data") {
         input "api_token", "text", title: "Nuki API Token", required: true
         input "lock_name", "text", title: "Nuki Smart Lock Name (case sensitive)", required: true
+        input "polling", "text", title: "Polling Interval (mins)", required: true, defaultValue: "15", range: 2..59
         input name: "logEnable", type: "bool", title: "Enable debug logging", defaultValue: true
     }
 }
@@ -51,8 +55,10 @@ void logsOff() {
 void updated() {
     log.info "updated..."
     log.warn "debug logging is: ${logEnable == true}"
-    setLockId()
     if (logEnable) runIn(1800, logsOff)
+    setLockId()
+    updateSchedule()
+    setPolling()
 }
 
 void lock() {
@@ -72,13 +78,21 @@ void lockNGo() {
 }
 
 void refresh() {
+    setStatus()
+}
+
+void poll() {
+    setStatus()
+}
+
+void setStatus() {
     Map lock_data = getCurrentStatus()
     sendLockEvents(lock_data)
 }
 
 void doorAction(String action) {
     if (logEnable) log.debug "Initiating : ${action}"
-    String lock_id = device.currentValue("lastLockId", true)
+    String lock_id = state.lastLockId
     Map<String, Objects> data = [
             "path": "/smartlock/" + lock_id + "/action",
             "body": ["action": _lockActions[action].id]
@@ -153,9 +167,9 @@ void setLockId() {
         log.warn "HTTP GET failed: ${e.message}"
     }
 
-    List lock = locks.findAll { map -> map.name == lock_name }
+    def lock = locks.find { map -> map.name == lock_name }
     if (lock != []) {
-        sendEvent(name: "lastLockId", value: lock[0]?.smartlockId, displayed: false)
+        state.lastLockId = lock?.smartlockId
     } else
         log.warn "Invalid lock name or error on retrieving the lock ID"
 }
@@ -164,7 +178,7 @@ Map getCurrentStatus() {
     Map lock_data = [:]
     Map lock_data_return = [:]
     if (logEnable) log.debug "Refreshing the lock data"
-    String lock_id = device.currentValue("lastLockId", true)
+    String lock_id = state.lastLockId
     if (lock_id != null) {
         Map<String> data = [
                 "path": "/smartlock/" + lock_id
@@ -183,13 +197,13 @@ Map getCurrentStatus() {
             log.warn "HTTP GET failed: ${e.message}"
         }
         if (lock_data != [:]) {
-            int state = lock_data?.state?.state
-            String lock_state = _lockStatus.get(state)
-            int battery_state = lock_data?.state?.batteryCharge
-            if (device.currentValue("lastLockStatus", true) != lock_state) sendEvent(name: "lastLockStatus", value: lock_state, isStateChange: true)
+            Integer state_num = lock_data?.state?.state
+            String state_name = _lockStatus.get(state_num)
+            Integer battery_state = lock_data?.state?.batteryCharge as Integer
+            if (state.lastLockStatus != state_name) state.lastLockStatus = state_name
 
             lock_data_return.battery_state = battery_state
-            lock_data_return.lock_state = lock_state
+            lock_data_return.lock_state = state_name
         }
     }
     return lock_data_return
@@ -197,7 +211,7 @@ Map getCurrentStatus() {
 
 void sendLockEvents(Map lock_data) {
     String lock_state = lock_data.lock_state
-    int battery_state = lock_data.battery_state
+    Integer battery_state = lock_data.battery_state
     if (lock_state == "locked" || lock_state == "unlocked") {
         sendEvent(name: "lock", value: lock_state, isStateChange: true)
     }
@@ -223,6 +237,70 @@ Map prepareNukiApi(Map data) {
             "body"              : data?.body
     ]
     return params
+}
+
+void updateCheck(){
+    setVersion()
+    String updateMsg = ""
+    Map params = [uri: "https://raw.githubusercontent.com/vpsupun/hubitat-eaton-xcomfort/master/resources/version.json", contentType: "application/json; charset=utf-8"]
+    try {
+        httpGet(params) { resp ->
+            if (logEnable) log.debug " Version Checking - Response Data: ${resp.data}"
+            if (logEnable) log.debug " ${state.appName} Debug Driver info : ${resp.data.driver.EatonXComfort}"
+            Map driverInfo = resp.data.driver.get(state.appName)
+            if (driverInfo != null) {
+                if (logEnable) log.debug " Debug Driver info : ${driverInfo}"
+                String newVerRaw = driverInfo?.version as String
+                Integer newVer = newVerRaw?.replace(".", "") as Integer
+                Integer currentVer = state.version.replace(".", "") as Integer
+                String updateInfo = driverInfo?.updateInfo
+                switch (newVer) {
+                    case 999:
+                        updateMsg = "<b>** This driver is no longer supported by the auther, ${state.author} **</b>"
+                        log.warn "** This driver is no longer supported by the auther, ${state.author} **"
+                        break;
+                    case 000:
+                        updateMsg = "<b>** This driver is still in beta **</b>"
+                        log.warn "** This driver is still in beta **"
+                        break;
+                    case currentVer:
+                        updateMsg = "up to date"
+                        log.info "You are using the current version of this driver"
+                        state.remove("newVersionChangeLog")
+                        break;
+                    default :
+                        updateMsg = "<b>** A new version is availabe (version: ${newVerRaw}) **</b>"
+                        log.warn "** A new version is availabe (version: ${newVerRaw}) **"
+                        state.newVersionChangeLog = updateInfo
+                }
+                state.author = resp.data.author
+                state.versionInfo = updateMsg
+            } else {
+                if (logEnable) log.warn "Version update is not implemented for this app !"
+                state.remove("newVersionChangeLog")
+                state.remove("versionInfo")
+            }
+        }
+    }
+    catch (e) {
+        log.error "Error while fetching the version information ${e}"
+    }
+}
+
+void updateSchedule(){
+    unschedule(updateCheck)
+    def hour = Math.round(Math.floor(Math.random() * 23))
+    String cron = "0 0 ${hour} * * ? *"
+    updateCheck()
+    schedule(cron, updateCheck)
+}
+
+void setPolling() {
+    unschedule(setStatus)
+    def sec = Math.round(Math.floor(Math.random() * 60))
+    def min = Math.round(Math.floor(Math.random() * settings.polling.toInteger()))
+    String cron = "${sec} ${min}/${settings.polling.toInteger()} * * * ?"
+    schedule(cron, setStatus)
 }
 
 @Field static Map _lockStatus = [

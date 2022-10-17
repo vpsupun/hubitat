@@ -16,6 +16,11 @@
  *
  */
 
+void setVersion(){
+    state.version = "0.0.3"
+    state.appName = "EnvoyLocalData"
+}
+
 metadata {
     definition(name: "Enphase Envoy-S Production Data", namespace: "community", author: "Supun Vidana Pathiranage", importUrl: "https://raw.githubusercontent.com/vpsupun/hubitat-eaton-xcomfort/master/EnvoyLocalData.groovy") {
         capability "Sensor"
@@ -51,8 +56,9 @@ void logsOff() {
 void updated() {
     log.info "updated..."
     log.warn "debug logging is: ${logEnable == true}"
-    setPolling()
     if (logEnable) runIn(1800, logsOff)
+    setPolling()
+    updateSchedule()
 }
 
 void poll() {
@@ -169,19 +175,25 @@ String getSession() {
 
 String getToken() {
     String valid_token
-    String current_token = device.currentValue("jwt_token", true)
-
+    String current_token
+    // migrate from attribute to state variable
+    if (state.jwt_token != null) {
+        current_token = state.jwt_token
+    } else if (device.currentValue("jwt_token", true) != null) {
+        state.jwt_token = device.currentValue("jwt_token", true)
+    }
     if (logEnable) log.debug "Retrieving the token"
     if (current_token != null && isValidToken(current_token)) {
         if (logEnable) log.debug "Current token is still valid. Using it. "
         valid_token = current_token
     } else {
-        if (logEnable) log.debug "Current token is still expired. Generating a new one."
+        if (logEnable) log.debug "Current token is expired. Generating a new one."
         String session = getSession()
         if (session != null) {
             String token_generated = generateToken(session)
             if (token_generated != null && isValidToken(token_generated)) {
                 sendEvent(name: "jwt_token", value: token_generated, displayed: false)
+                state.jwt_token = token_generated
                 valid_token = token_generated
             } else {
                 log.warn "Generated token is not valid. Investigate with debug logs"
@@ -226,11 +238,66 @@ String generateToken(String session_id) {
     return token
 }
 
+void updateCheck(){
+    setVersion()
+    String updateMsg = ""
+    Map params = [uri: "https://raw.githubusercontent.com/vpsupun/hubitat-eaton-xcomfort/master/resources/version.json", contentType: "application/json; charset=utf-8"]
+    try {
+        httpGet(params) { resp ->
+            if (logEnable) log.debug " Version Checking - Response Data: ${resp.data}"
+            if (logEnable) log.debug " ${state.appName} Debug Driver info : ${resp.data.driver.EatonXComfort}"
+            Map driverInfo = resp.data.driver.get(state.appName)
+            if (driverInfo != null) {
+                if (logEnable) log.debug " Debug Driver info : ${driverInfo}"
+                String newVerRaw = driverInfo?.version as String
+                Integer newVer = newVerRaw?.replace(".", "") as Integer
+                Integer currentVer = state.version.replace(".", "") as Integer
+                String updateInfo = driverInfo?.updateInfo
+                switch (newVer) {
+                    case 999:
+                        updateMsg = "<b>** This driver is no longer supported by the auther, ${state.author} **</b>"
+                        log.warn "** This driver is no longer supported by the auther, ${state.author} **"
+                        break;
+                    case 000:
+                        updateMsg = "<b>** This driver is still in beta **</b>"
+                        log.warn "** This driver is still in beta **"
+                        break;
+                    case currentVer:
+                        updateMsg = "up to date"
+                        log.info "You are using the current version of this driver"
+                        state.remove("newVersionChangeLog")
+                        break;
+                    default :
+                        updateMsg = "<b>** A new version is availabe (version: ${newVerRaw}) **</b>"
+                        log.warn "** A new version is availabe (version: ${newVerRaw}) **"
+                        state.newVersionChangeLog = updateInfo
+                }
+                state.author = resp.data.author
+                state.versionInfo = updateMsg
+            } else {
+                if (logEnable) log.warn "Version update is not implemented for this app !"
+                state.remove("newVersionChangeLog")
+                state.remove("versionInfo")
+            }
+        }
+    }
+    catch (e) {
+        log.error "Error while fetching the version information ${e}"
+    }
+}
+
+void updateSchedule(){
+    unschedule(updateCheck)
+    def hour = Math.round(Math.floor(Math.random() * 23))
+    String cron = "0 0 ${hour} * * ? *"
+    updateCheck()
+    schedule(cron, updateCheck)
+}
+
 void setPolling() {
     unschedule()
     def sec = Math.round(Math.floor(Math.random() * 60))
     def min = Math.round(Math.floor(Math.random() * settings.polling.toInteger()))
     String cron = "${sec} ${min}/${settings.polling.toInteger()} * * * ?" // every N min
-    log.warn "startPolling: schedule('$cron', pullData)".toString()
     schedule(cron, pullData)
 }

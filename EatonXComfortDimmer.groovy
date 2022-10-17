@@ -40,6 +40,7 @@ preferences {
         input "pass", "password", title: "Password", required: true
         input "zone", "text", title: "Zone Name", required: false
         input "dev", "text", title: "Device Name", required: false
+        input "polling", "text", title: "Polling Interval (mins)", required: true, defaultValue: "15", range: 2..59
         input name: "logEnable", type: "bool", title: "Enable debug logging", defaultValue: true
     }
 }
@@ -55,7 +56,8 @@ void updated() {
     if (logEnable) runIn(1800, logsOff)
     setZoneId()
     setDeviceId()
-    checkVersion()
+    updateSchedule()
+    setPolling()
 }
 
 void parse(String description) {
@@ -271,11 +273,6 @@ def prepareHttpParams(String method, List params = []) {
     return httpParams
 }
 
-void checkVersion(){
-    updateCheck()
-    schedule("0 0 18 1/1 * ? *", updateCheck)
-}
-
 void updateCheck(){
     setVersion()
     String updateMsg = ""
@@ -322,4 +319,20 @@ void updateCheck(){
     catch (e) {
         log.error "Error while fetching the version information ${e}"
     }
+}
+
+void updateSchedule(){
+    unschedule(updateCheck)
+    def hour = Math.round(Math.floor(Math.random() * 23))
+    String cron = "0 0 ${hour} * * ? *"
+    updateCheck()
+    schedule(cron, updateCheck)
+}
+
+void setPolling() {
+    unschedule(getStatus)
+    def sec = Math.round(Math.floor(Math.random() * 60))
+    def min = Math.round(Math.floor(Math.random() * settings.polling.toInteger()))
+    String cron = "${sec} ${min}/${settings.polling.toInteger()} * * * ?"
+    schedule(cron, getStatus)
 }
