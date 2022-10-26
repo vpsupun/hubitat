@@ -17,7 +17,7 @@
     },
     "NukiWebAPI": {
       "version": "0.0.4",
-      "updateInfo": "<br>- Implemented version check"
+      "updateInfo": "<br>- Added more debug logs"
     }
   }
 }
