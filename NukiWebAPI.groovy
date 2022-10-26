@@ -20,7 +20,7 @@
 import groovy.transform.Field
 
 void setVersion(){
-    state.version = "0.0.3"
+    state.version = "0.0.4"
     state.appName = "NukiWebAPI"
 }
 
@@ -91,7 +91,7 @@ void setStatus() {
 }
 
 void doorAction(String action) {
-    if (logEnable) log.debug "Initiating : ${action}"
+    log.debug "Initiating : ${action}"
     String lock_id = state.lastLockId
     Map<String, Objects> data = [
             "path": "/smartlock/" + lock_id + "/action",
@@ -114,6 +114,7 @@ void doorAction(String action) {
 
 void actionHandler(String action) {
     boolean loop_stop = false
+    String end_state = _lockActions[action].end_state
     for (i in 1..5) {
         Map lock_data = getCurrentStatus()
         String lock_state = lock_data.lock_state
@@ -121,21 +122,21 @@ void actionHandler(String action) {
             case "uncalibrated":
                 log.warn "Lock is ${lock_state}. Calibrate it using the smartphone."
                 loop_stop = true
-                break
+                break;
             case "motor blocked":
                 log.warn "Motor blocked. Check the lock manually."
                 loop_stop = true
-                break
+                break;
             case "undefined":
                 log.warn "Undefined state. Try again later."
                 loop_stop = true
-                break
-            case _lockActions[action].end_state:
-                if (logEnable) log.debug "Action is completed : ${action}"
+                break;
+            case "${end_state}":
+                log.debug "Action is completed : ${action}"
                 loop_stop = true
-                break
+                break;
             default:
-                break
+                break;
         }
         if (loop_stop) {
             sendLockEvents(lock_data)
@@ -143,6 +144,7 @@ void actionHandler(String action) {
         }
         pauseExecution(2000)
     }
+    log.warn "Coudn't complete the action : ${action} in 10s. Investigate with debug logs."
 }
 
 void setLockId() {
