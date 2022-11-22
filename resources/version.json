@@ -18,6 +18,10 @@
     "NukiWebAPI": {
       "version": "0.0.4",
       "updateInfo": "<br>- Added more debug logs"
+    },
+    "IthoNRG": {
+      "version": "0.0.1",
+      "updateInfo": "<br>- First release"
     }
   }
 }
