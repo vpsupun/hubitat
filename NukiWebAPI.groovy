@@ -116,7 +116,7 @@ void doorAction(String action) {
 }
 
 void cleanup() {
-    state.remove("lastLockId")
+    state.remove("lastLockStatus")
 }
 
 void actionHandler(String action) {
