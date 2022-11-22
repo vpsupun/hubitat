@@ -16,8 +16,8 @@
       "updateInfo": "<br>- Implemented version check"
     },
     "NukiWebAPI": {
-      "version": "0.0.4",
-      "updateInfo": "<br>- Added more debug logs"
+      "version": "0.0.5",
+      "updateInfo": "<br>- Fixed the invalid error msg and switched to attributes"
     },
     "IthoNRG": {
       "version": "0.0.1",

@@ -20,7 +20,7 @@
 import groovy.transform.Field
 
 void setVersion(){
-    state.version = "0.0.4"
+    state.version = "0.0.5"
     state.appName = "NukiWebAPI"
 }
 
@@ -30,6 +30,8 @@ metadata {
         capability "Lock"
         capability "Refresh"
         capability "Polling"
+
+        attribute "lastLockStatus", "string"
 
         command "lock"
         command "unlock"
@@ -56,6 +58,7 @@ void updated() {
     log.info "updated..."
     log.warn "debug logging is: ${logEnable == true}"
     if (logEnable) runIn(1800, logsOff)
+    cleanup()
     setLockId()
     updateSchedule()
     setPolling()
@@ -112,6 +115,10 @@ void doorAction(String action) {
     }
 }
 
+void cleanup() {
+    state.remove("lastLockId")
+}
+
 void actionHandler(String action) {
     boolean loop_stop = false
     String end_state = _lockActions[action].end_state
@@ -144,7 +151,6 @@ void actionHandler(String action) {
         }
         pauseExecution(2000)
     }
-    log.warn "Coudn't complete the action : ${action} in 10s. Investigate with debug logs."
 }
 
 void setLockId() {
@@ -202,8 +208,9 @@ Map getCurrentStatus() {
             Integer state_num = lock_data?.state?.state
             String state_name = _lockStatus.get(state_num)
             Integer battery_state = lock_data?.state?.batteryCharge as Integer
-            if (state.lastLockStatus != state_name) state.lastLockStatus = state_name
-
+            if (device.currentValue("lastLockStatus", true) != state_name) {
+                sendEvent(name: "lastLockStatus", value: state_name, isStateChange: true)
+            }
             lock_data_return.battery_state = battery_state
             lock_data_return.lock_state = state_name
         }
