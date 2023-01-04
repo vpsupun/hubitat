@@ -17,7 +17,7 @@
  */
 
 void setVersion(){
-    state.version = "0.0.3"
+    state.version = "0.0.4"
     state.appName = "EnvoyLocalData"
 }
 
@@ -70,14 +70,15 @@ void refresh() {
 }
 
 void pullData() {
-    String production_url = "https://" + settings.ip + "/api/v1/production"
+    String ip = settings.ip - "https://" - "http://" - "/"
+    String production_url = "https://" + ip + "/api/v1/production"
     Map production_data = [:]
 
     if (logEnable) log.debug "Pulling data..."
     String token = getToken()
     if (token != null) {
         Map<String> headers = [
-                "Authorization": "Basic " + token
+                "Authorization": "Bearer " + token
         ]
         Map<String, Object> httpParams = [
                 "uri"               : production_url,
@@ -112,11 +113,12 @@ void pullData() {
 boolean isValidToken(String token) {
     boolean valid_token = false
     String response
-    String token_check_url = "https://" + settings.ip + "/auth/check_jwt"
+    String ip = settings.ip - "https://" - "http://" - "/"
+    String token_check_url = "https://" + ip + "/auth/check_jwt"
 
     if (logEnable) log.debug "Validating the token"
     Map<String> headers = [
-            "Authorization": "Basic " + token
+            "Authorization": "Bearer " + token
     ]
     Map<String, Object> httpParams = [
             "uri"               : token_check_url,
@@ -132,13 +134,13 @@ boolean isValidToken(String token) {
             }
             if (resp.success) {
                 response = resp.data
+                if (response.contains("Valid token.")) {
+                    valid_token = true
+                }
             }
         }
     } catch (Exception e) {
         log.warn "HTTP get failed: ${e.message}"
-    }
-    if (response.contains("Valid token.")) {
-        valid_token = true
     }
     return valid_token
 }

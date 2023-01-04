@@ -12,8 +12,8 @@
       "updateInfo": "<br>- Auto discover zone and device ID"
     },
     "EnvoyLocalData": {
-      "version": "0.0.3",
-      "updateInfo": "<br>- Implemented version check"
+      "version": "0.0.4",
+      "updateInfo": "<br>- Improved jwt token validation"
     },
     "NukiWebAPI": {
       "version": "0.0.5",
