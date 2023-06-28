@@ -4,6 +4,7 @@
  * Hubitat connecting to the Enphase Envoy-S (metered) with new firmware that requires a token to access local data
  *
  * Production output from Envoy : [wattHoursToday:xx, wattHoursSevenDays:xx, wattHoursLifetime:xx, wattsNow:xx]
+ * Consumption data from Envoy : [wattHoursToday:xx, wattHoursSevenDays:xx, wattHoursLifetime:xx, wattsNow:xx]
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in
  *  compliance with the License. You may obtain a copy of the License at:
@@ -17,7 +18,7 @@
  */
 
 void setVersion(){
-    state.version = "0.0.4"
+    state.version = "0.0.5"
     state.appName = "EnvoyLocalData"
 }
 
@@ -29,10 +30,14 @@ metadata {
         capability "Refresh"
         capability "Polling"
 
-        attribute "energy_today", "number"
-        attribute "energy_last7days", "number"
-        attribute "energy_life", "number"
-        attribute "energy_now", "number"
+        attribute "production_energy_today", "number"
+        attribute "production_energy_last7days", "number"
+        attribute "production_energy_life", "number"
+        attribute "production_energy_now", "number"
+        attribute "consumption_energy_today", "number"
+        attribute "consumption_energy_last7days", "number"
+        attribute "consumption_energy_life", "number"
+        attribute "consumption_energy_now", "number"
         attribute "jwt_token", "string"
     }
 }
@@ -71,8 +76,8 @@ void refresh() {
 
 void pullData() {
     String ip = settings.ip - "https://" - "http://" - "/"
-    String production_url = "https://" + ip + "/api/v1/production"
-    Map production_data = [:]
+    String production_url = "https://" + ip + "/api/v1/energy"
+    List energy_data = []
 
     if (logEnable) log.debug "Pulling data..."
     String token = getToken()
@@ -94,17 +99,28 @@ void pullData() {
                     if (resp.data) log.debug "${resp.data}"
                 }
                 if (resp.success) {
-                    production_data = resp.data
+                    energy_data = resp.data
                 }
             }
         } catch (Exception e) {
             log.warn "HTTP get failed: ${e.message}"
         }
 
-        sendEvent(name: "energy_today", value: production_data?.wattHoursToday, displayed: false)
-        sendEvent(name: "energy_last7days", value: production_data?.wattHoursSevenDays, displayed: false)
-        sendEvent(name: "energy_life", value: production_data?.wattHoursLifetime, displayed: false)
-        sendEvent(name: "power", value: production_data?.wattsNow, unit: "w", isStateChange: true)
+        Map production_data = energy_data.find{ it.type == 'Production' }
+        Map consumption_data = energy_data.find{ it.type == 'Consumption' }
+        Integer net_metering = (production_data?.wattsNow - consumption_data?.wattsNow) as Integer
+
+        sendEvent(name: "production_energy_today", value: production_data?.wattHoursToday, displayed: false)
+        sendEvent(name: "production_energy_last7days", value: production_data?.wattHoursSevenDays, displayed: false)
+        sendEvent(name: "production_energy_life", value: production_data?.wattHoursLifetime, displayed: false)
+        sendEvent(name: "production_energy_now", value: production_data?.wattsNow, isStateChange: true)
+
+        sendEvent(name: "consumption_energy_today", value: consumption_data?.wattHoursToday, displayed: false)
+        sendEvent(name: "consumption_energy_last7days", value: consumption_data?.wattHoursSevenDays, displayed: false)
+        sendEvent(name: "consumption_energy_life", value: consumption_data?.wattHoursLifetime, displayed: false)
+        sendEvent(name: "consumption_energy_now", value: consumption_data?.wattsNow, isStateChange: true)
+
+        sendEvent(name: "power", value: net_metering, unit: "w", isStateChange: true)
 
     } else
         log.warn "Unable to get a valid token. Aborting..."
