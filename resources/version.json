@@ -13,7 +13,7 @@
     },
     "EnvoyLocalData": {
       "version": "0.0.5",
-      "updateInfo": "<br>- Added consumption date <br>- Major variable name changes. Check for broken rules."
+      "updateInfo": "<br>- Added consumption data <br>- Major  (state) variable name changes. Check for broken rules."
     },
     "NukiWebAPI": {
       "version": "0.0.5",
