@@ -236,6 +236,7 @@ String generateToken(String session_id) {
     Map<String, Object> httpParams = [
             "uri"               : tokenUrl,
             "contentType"       : "text/html",
+            "headers"           : ["Accept" : "application/json"],
             "requestContentType": "application/json",
             "body"              : data
     ]
