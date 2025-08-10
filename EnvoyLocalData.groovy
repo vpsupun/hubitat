@@ -18,7 +18,7 @@
  */
 
 void setVersion(){
-    state.version = "0.0.5"
+    state.version = "0.0.6"
     state.appName = "EnvoyLocalData"
 }
 
