@@ -12,8 +12,8 @@
       "updateInfo": "<br>- Auto discover zone and device ID"
     },
     "EnvoyLocalData": {
-      "version": "0.0.5",
-      "updateInfo": "<br>- Added consumption data <br>- Major  (state) variable name changes. Check for broken rules."
+      "version": "0.0.6",
+      "updateInfo": "<br>- Updated the header to work with Envoy devices from differet regions"
     },
     "NukiWebAPI": {
       "version": "0.0.5",
