@@ -187,7 +187,7 @@ String getSession() {
         log.warn "HTTP post failed: ${e.message}"
     }
 
-    if (logEnable) log.debug "Sessin Id: ${session}"
+    if (logEnable) log.debug "Session Id: ${session}"
     return session
 }
 
@@ -217,7 +217,7 @@ String getToken() {
                 log.warn "Generated token is not valid. Investigate with debug logs"
             }
         } else {
-            log.warn "Generated token is null. Investigate with debug logs"
+            log.warn "Generated session is null. Investigate with debug logs"
         }
     }
     return valid_token
@@ -287,8 +287,8 @@ void updateCheck(){
                         state.remove("newVersionChangeLog")
                         break;
                     default :
-                        updateMsg = "<b>** A new version is availabe (version: ${newVerRaw}) **</b>"
-                        log.warn "** A new version is availabe (version: ${newVerRaw}) **"
+                        updateMsg = "<b>** A new version is available (version: ${newVerRaw}) **</b>"
+                        log.warn "** A new version is available (version: ${newVerRaw}) **"
                         state.newVersionChangeLog = updateInfo
                 }
                 state.author = resp.data.author
