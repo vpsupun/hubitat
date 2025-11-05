@@ -18,7 +18,7 @@ import groovy.json.*
 import groovy.transform.Field
 
 void setVersion(){
-    state.version = "0.0.1"
+    state.version = "0.0.2"
     state.appName = "IthoNRG"
 }
 

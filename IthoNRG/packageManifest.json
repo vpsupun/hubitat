@@ -1,15 +1,15 @@
 {
   "packageName": "Itho NRG",
   "author": "Supun Vidana Pathiranage",
-  "version": "0.0.21:13",
+  "version": "0.0.2",
   "minimumHEVersion": "0.0",
   "dateReleased": "2022-11-22",
   "drivers": [
     {
-      "id": "2f73fe06-8994-4cbb-ab08-483d4c0a5e6d",
-      "name": "Nuki Web API",
+      "id": "d82b139a-3112-48da-846b-47afa378ee92",
+      "name": "Itho NRG Wi-Fi Controller",
       "namespace": "community",
-      "location": "https://raw.githubusercontent.com/vpsupun/hubitat/master/NukiWebAPI.groovy",
+      "location": "https://raw.githubusercontent.com/vpsupun/hubitat/master/IthoNRG/IthoNRG.groovy",
       "required": true
     }
   ]

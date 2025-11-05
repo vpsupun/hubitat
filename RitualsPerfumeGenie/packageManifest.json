@@ -9,7 +9,7 @@
       "id": "bdc8a9ac-568e-40d3-b747-ded3a0cd0934",
       "name": "Rituals Perfume Genie",
       "namespace": "community",
-      "location": "https://raw.githubusercontent.com/vpsupun/hubitat/master/RitualsPerfumeGenie.groovy",
+      "location": "https://raw.githubusercontent.com/vpsupun/hubitat/master/RitualsPerfumeGenie/RitualsPerfumeGenie.groovy",
       "required": true
     }
   ]

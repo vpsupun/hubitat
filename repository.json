@@ -1,0 +1,35 @@
+{
+  "author": "Supun Vidana Pathiranage",
+  "gitHubUrl": "https://github.com/vpsupun/hubitat",
+  "payPalUrl": "https://paypal.me/vpsupun",
+  "packages": [
+    {
+      "id": "ce32ea21-b113-4257-a46e-ef5f30cfef57",
+      "name": "Nuki Web API",
+      "category": "Integrations",
+      "location": "https://raw.githubusercontent.com/vpsupun/hubitat/master/NukiWebAPI/packageManifest.json",
+      "description": "Nuki Smart Lock web API driver. Control your Nuki smart locks without the hub"
+    },
+    {
+      "id": "d601884d-009d-43fa-a49b-112548656736",
+      "name": "Nuki Web API",
+      "category": "Integrations",
+      "location": "https://raw.githubusercontent.com/vpsupun/hubitat/master/RitualsPerfumeGenie/packageManifest.json",
+      "description": "Control & view status of your Rituals Perfume Genie"
+    },
+    {
+      "id": "924c7849-b28d-470f-80eb-5c9146ee65ac",
+      "name": "Nuki Web API",
+      "category": "Integrations",
+      "location": "https://raw.githubusercontent.com/vpsupun/hubitat/master/EnvoyLocalData/packageManifest.json",
+      "description": "Get production & consumption data from Enphase Envoy-S (metered) locally"
+    },
+    {
+      "id": "9846bb55-a6de-4bfa-8857-6ac323f0e54b",
+      "name": "Nuki Web API",
+      "category": "Integrations",
+      "location": "https://raw.githubusercontent.com/vpsupun/hubitat/master/IthoNRG/packageManifest.json",
+      "description": "Itho (NRG) Wi-Fi Controller. Control your Itho (NRG) fan"
+    }
+  ]
+}
