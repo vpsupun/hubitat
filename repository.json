@@ -8,28 +8,48 @@
       "name": "Nuki Web API",
       "category": "Integrations",
       "location": "https://raw.githubusercontent.com/vpsupun/hubitat/master/NukiWebAPI/packageManifest.json",
-      "description": "Nuki Smart Lock web API driver. Control your Nuki smart locks without the hub"
+      "description": "Nuki Smart Lock web API driver. Control your Nuki smart locks without the hub",
+      "tags": [
+        "Locks",
+        "Safety & Security",
+        "Doors & Windows",
+        "LAN"
+      ]
     },
     {
       "id": "d601884d-009d-43fa-a49b-112548656736",
-      "name": "Nuki Web API",
+      "name": "Rituals Perfume Genie",
       "category": "Integrations",
       "location": "https://raw.githubusercontent.com/vpsupun/hubitat/master/RitualsPerfumeGenie/packageManifest.json",
-      "description": "Control & view status of your Rituals Perfume Genie"
+      "description": "Control & view status of your Rituals Perfume Genie",
+      "tags": [
+        "Appliances",
+        "Misc. Devices"
+      ]
     },
     {
       "id": "924c7849-b28d-470f-80eb-5c9146ee65ac",
-      "name": "Nuki Web API",
+      "name": "Envoy Local Data",
       "category": "Integrations",
       "location": "https://raw.githubusercontent.com/vpsupun/hubitat/master/EnvoyLocalData/packageManifest.json",
-      "description": "Get production & consumption data from Enphase Envoy-S (metered) locally"
+      "description": "Get production & consumption data from Enphase Envoy-S (metered) locally",
+      "tags": [
+        "Energy Monitoring",
+        "LAN"
+      ]
     },
     {
       "id": "9846bb55-a6de-4bfa-8857-6ac323f0e54b",
-      "name": "Nuki Web API",
+      "name": "Itho NRG",
       "category": "Integrations",
       "location": "https://raw.githubusercontent.com/vpsupun/hubitat/master/IthoNRG/packageManifest.json",
-      "description": "Itho (NRG) Wi-Fi Controller. Control your Itho (NRG) fan"
+      "description": "Itho (NRG) Wi-Fi Controller. Control your Itho (NRG) fan",
+      "tags": [
+        "Climate Control",
+        "Temperature & Humidity",
+        "LAN",
+        "Misc. Devices"
+      ]
     }
   ]
 }
