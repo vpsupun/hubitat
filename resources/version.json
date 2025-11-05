@@ -12,16 +12,16 @@
       "updateInfo": "<br>- Auto discover zone and device ID"
     },
     "EnvoyLocalData": {
-      "version": "0.0.6",
-      "updateInfo": "<br>- Updated the header to work with Envoy devices from differet regions"
+      "version": "0.0.7",
+      "updateInfo": "<br>- Driver path updated to support HPM integration"
     },
     "NukiWebAPI": {
-      "version": "0.0.5",
-      "updateInfo": "<br>- Fixed the invalid error msg and switched to attributes"
+      "version": "0.0.6",
+      "updateInfo": "<br>- Driver path updated to support HPM integration"
     },
     "IthoNRG": {
-      "version": "0.0.1",
-      "updateInfo": "<br>- First release"
+      "version": "0.0.2",
+      "updateInfo": "<br>- Driver path updated to support HPM integration"
     },
     "RitualsPerfumeGenie": {
       "version": "0.0.2",
