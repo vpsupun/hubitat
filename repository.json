@@ -1,0 +1,63 @@
+{
+  "author": "Supun Vidana Pathiranage",
+  "gitHubUrl": "https://github.com/vpsupun/hubitat",
+  "payPalUrl": "https://paypal.me/vpsupun",
+  "packages": [
+    {
+      "name": "Nuki Web API",
+      "category": "Integrations",
+      "location": "https://raw.githubusercontent.com/vpsupun/hubitat/refs/heads/master/NukiWebAPI.groovy",
+      "description": "Nuki Smart Lock web API driver. Control your Nuki smart locks without the hub",
+      "tags": [
+        "Locks",
+        "Safety & Security",
+        "Doors & Windows",
+        "LAN"
+      ]
+    },
+    {
+      "name": "Rituals Perfume Genie",
+      "category": "Integrations",
+      "location": "https://raw.githubusercontent.com/vpsupun/hubitat/refs/heads/master/RitualsPerfumeGenie.groovy",
+      "description": "Control & view status of your Rituals Perfume Genie",
+      "tags": [
+        "Appliances",
+        "Misc. Devices"
+      ]
+    },
+    {
+      "name": "Envoy Local Data",
+      "category": "Integrations",
+      "location": "https://raw.githubusercontent.com/vpsupun/hubitat/refs/heads/master/EnvoyLocalData.groovy",
+      "description": "Get production & consumption data from Enphase Envoy-S (metered) locally",
+      "tags": [
+        "Energy Monitoring",
+        "LAN"
+      ]
+    },
+    {
+      "name": "Itho NRG",
+      "category": "Integrations",
+      "location": "https://raw.githubusercontent.com/vpsupun/hubitat/refs/heads/master/IthoNRG.groovy",
+      "description": "Itho (NRG) Wi-Fi Controller. Control your Itho (NRG) fan",
+      "tags": [
+        "Climate Control",
+        "Temperature & Humidity",
+        "LAN",
+        "Misc. Devices"
+      ]
+    },
+    {
+      "name": "Basic Auth HTTP Switch",
+      "category": "Control",
+      "location": "https://raw.githubusercontent.com/vpsupun/hubitat/refs/heads/master/BasicAuthHTTPSwitch.groovy",
+      "description": "Control ANY switch operates using Basic HTTP Auth",
+      "tags": [
+        "Appliances",
+        "Misc. Devices",
+        "Buttons",
+        "Lights & Switches"
+      ]
+    }
+  ]
+}
