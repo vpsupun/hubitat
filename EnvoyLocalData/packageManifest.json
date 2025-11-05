@@ -1,0 +1,16 @@
+{
+  "packageName": "Envoy Local Data",
+  "author": "Supun Vidana Pathiranage",
+  "version": "0.0.7",
+  "minimumHEVersion": "0.0",
+  "dateReleased": "2022-10-1",
+  "drivers": [
+    {
+      "id": "3e361703-2eb5-40c1-948a-05f1b7b15d37",
+      "name": "Enphase Envoy-S Production Data",
+      "namespace": "community",
+      "location": "https://raw.githubusercontent.com/vpsupun/hubitat/master/EnvoyLocalData.groovy",
+      "required": true
+    }
+  ]
+}

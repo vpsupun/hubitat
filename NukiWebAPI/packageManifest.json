@@ -1,0 +1,16 @@
+{
+  "packageName": "Nuki Web API",
+  "author": "Supun Vidana Pathiranage",
+  "version": "0.0.6",
+  "minimumHEVersion": "0.0",
+  "dateReleased": "2022-11-22",
+  "drivers": [
+    {
+      "id": "45db2939-2211-4d31-9993-069c5d6f8bc4",
+      "name": "Nuki Web API",
+      "namespace": "community",
+      "location": "https://raw.githubusercontent.com/vpsupun/hubitat/master/NukiWebAPI.groovy",
+      "required": true
+    }
+  ]
+}

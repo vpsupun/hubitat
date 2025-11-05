@@ -1,0 +1,16 @@
+{
+  "packageName": "Rituals Perfume Genie",
+  "author": "Supun Vidana Pathiranage",
+  "version": "0.0.2",
+  "minimumHEVersion": "0.0",
+  "dateReleased": "2025-11-5",
+  "drivers": [
+    {
+      "id": "bdc8a9ac-568e-40d3-b747-ded3a0cd0934",
+      "name": "Rituals Perfume Genie",
+      "namespace": "community",
+      "location": "https://raw.githubusercontent.com/vpsupun/hubitat/master/RitualsPerfumeGenie.groovy",
+      "required": true
+    }
+  ]
+}
