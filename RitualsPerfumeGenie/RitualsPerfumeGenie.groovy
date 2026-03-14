@@ -40,7 +40,7 @@ metadata {
         command "off"
         command "refreshToken"
         command "refreshGenieName"
-        command "setPerfumeIntensityLevel", ["NUMBER"]
+        command "setPerfumeIntensityLevel", [[name:"Level", type: "NUMBER", description: "Intensity level (1, 2, or 3)"]]
     }
 }
 
@@ -79,6 +79,10 @@ void off() {
 }
 
 void refresh() {
+    setStatus()
+}
+
+void poll() {
     setStatus()
 }
 
@@ -221,7 +225,7 @@ void genieAction(String action, boolean retried = false) {
     }
 }
 
-void setPerfumeAmount(Integer amount, boolean retried = false) {
+void setPerfumeIntensityLevel(BigDecimal amount, boolean retried = false) {
     Integer a = (amount as Integer)
     if (!(a in [1,2,3])) { log.warn "Perfume amount must be 1, 2 or 3"; return }
     String hub_hash = state.genie_id
@@ -243,7 +247,7 @@ void setPerfumeAmount(Integer amount, boolean retried = false) {
                 if (resp.data) log.debug "${resp.data}"
             }
             if (resp.status == 401 || (resp.data?.status == "Unauthorized")) {
-                if (!retried) { setToken(); setPerfumeAmount(a, true); return }
+                if (!retried) { setToken(); setPerfumeIntensityLevel(a, true); return }
             }
             if (resp.success) {
                 sendEvent(name: "speed", value: a, isStateChange: true)
@@ -269,7 +273,7 @@ void setStatus(boolean retried = false) {
                 headers: ["Accept": "*/*", "Authorization": token]
         ]
         httpGet(fancParams) { resp ->
-            if (resp.status == 401 || (resp.data?.status == "Unauthorized")) {
+            if (resp.status == 401 || (resp.data?.status == "Unauthorized") || (resp.data?.success == "false")) {
                 if (!retried) { setToken(); setStatus(true); return }
             }
             if (resp.success) fanc = resp.data as Map
@@ -280,7 +284,7 @@ void setStatus(boolean retried = false) {
                 headers: ["Accept": "*/*", "Authorization": token]
         ]
         httpGet(speedParams) { resp ->
-            if (resp.status == 401 || (resp.data?.status == "Unauthorized")) {
+            if (resp.status == 401 || (resp.data?.status == "Unauthorized") || (resp.data?.success == "false")) {
                 if (!retried) { setToken(); setStatus(true); return }
             }
             if (resp.success) speed = resp.data as Map
@@ -291,7 +295,7 @@ void setStatus(boolean retried = false) {
                 headers: ["Accept": "*/*", "Authorization": token]
         ]
         httpGet(wificParams) { resp ->
-            if (resp.status == 401 || (resp.data?.status == "Unauthorized")) {
+            if (resp.status == 401 || (resp.data?.status == "Unauthorized") || (resp.data?.success == "false")) {
                 if (!retried) { setToken(); setStatus(true); return }
             }
             if (resp.success) wific = resp.data as Map
@@ -302,7 +306,7 @@ void setStatus(boolean retried = false) {
                 headers: ["Accept": "*/*", "Authorization": token]
         ]
         httpGet(fillcParams) { resp ->
-            if (resp.status == 401 || (resp.data?.status == "Unauthorized")) {
+            if (resp.status == 401 || (resp.data?.status == "Unauthorized") || (resp.data?.success == "false")) {
                 if (!retried) { setToken(); setStatus(true); return }
             }
             if (resp.success) fillc = resp.data as Map

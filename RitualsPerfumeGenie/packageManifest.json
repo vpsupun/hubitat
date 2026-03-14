@@ -1,9 +1,9 @@
 {
   "packageName": "Rituals Perfume Genie",
   "author": "Supun Vidana Pathiranage",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "minimumHEVersion": "0.0",
-  "dateReleased": "2025-11-5",
+  "dateReleased": "2025-11-15",
   "drivers": [
     {
       "id": "bdc8a9ac-568e-40d3-b747-ded3a0cd0934",
