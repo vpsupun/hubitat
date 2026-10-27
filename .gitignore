@@ -1,3 +1,21 @@
 .idea/
+.vscode/
 hubitat.iml
 lib/
+
+# OS noise
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Backups / editor temp
+*.bak
+*~
+*.orig
+*.swp
+
+# Secrets and local config — never commit
+.env
+.env.*
+*.local.json
+secrets*.groovy

@@ -19,18 +19,17 @@ import groovy.transform.Field
 import groovy.json.JsonSlurper
 
 void setVersion(){
-    state.version = "0.0.2"
+    state.version = "0.0.4"
     state.appName = "RitualsPerfumeGenie"
 }
 
 metadata {
-    definition(name: "Rituals Perfume Genie", namespace: "community", author: "Supun Vidana Pathiranage", importUrl: "https://raw.githubusercontent.com/vpsupun/hubitat/master/RitualsPerfumeGenie.groovy") {
+    definition(name: "Rituals Perfume Genie", namespace: "community", author: "Supun Vidana Pathiranage", importUrl: "https://raw.githubusercontent.com/vpsupun/hubitat/master/RitualsPerfumeGenie/RitualsPerfumeGenie.groovy") {
         capability "SignalStrength"
         capability "Switch"
         capability "Refresh"
         capability "Polling"
 
-        attribute "lastToken", "string"
         attribute "genie_id", "string"
         attribute "speed", "number"
         attribute "wifi_percentage", "number"
@@ -110,7 +109,7 @@ String generateToken() {
     try {
         httpPost(httpParams) { resp ->
             if (logEnable) {
-                if (resp.data) log.debug "${resp.data}"
+                if (resp.data) log.debug "${redactTokenData(resp.data)}"
             }
             if (resp.success) {
                 if (resp.data?.success != "false") {
@@ -123,15 +122,28 @@ String generateToken() {
     } catch (Exception e) {
         log.warn "HTTP post failed: ${e.message}"
     }
-    if (logEnable) log.debug "Token : ${token}"
+    if (logEnable) log.debug "Token : ${maskSecret(token)}"
     return token
+}
+
+String maskSecret(String secret) {
+    if (secret == null) return "****"
+    return secret.length() <= 8 ? "****" : secret.substring(0, 4) + "****(${secret.length()} chars)"
+}
+
+def redactTokenData(data) {
+    if (data instanceof Map && data.success && data.success != "false") {
+        Map redacted = new LinkedHashMap(data)
+        redacted.success = maskSecret(data.success.toString())
+        return redacted
+    }
+    return data
 }
 
 String setToken() {
     if (logEnable) log.debug "Current token seems expired. Generating a new one."
     String token = generateToken()
     if (token != null) {
-        sendEvent(name: "lastToken", value: token, displayed: false)
         state.lastToken = token
     } else {
         log.warn "Generated token is null. Investigate with debug logs"

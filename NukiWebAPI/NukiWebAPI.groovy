@@ -20,12 +20,12 @@
 import groovy.transform.Field
 
 void setVersion(){
-    state.version = "0.0.6"
+    state.version = "0.0.7"
     state.appName = "NukiWebAPI"
 }
 
 metadata {
-    definition(name: "Nuki Web API", namespace: "community", author: "Supun Vidana Pathiranage", importUrl: "https://raw.githubusercontent.com/vpsupun/hubitat-eaton-xcomfort/master/NukiWebAPI.groovy") {
+    definition(name: "Nuki Web API", namespace: "community", author: "Supun Vidana Pathiranage", importUrl: "https://raw.githubusercontent.com/vpsupun/hubitat/master/NukiWebAPI/NukiWebAPI.groovy") {
         capability "Battery"
         capability "Lock"
         capability "Refresh"
@@ -42,7 +42,7 @@ metadata {
 
 preferences {
     section("URI Data") {
-        input "api_token", "text", title: "Nuki API Token", required: true
+        input "api_token", "password", title: "Nuki API Token", required: true
         input "lock_name", "text", title: "Nuki Smart Lock Name (case sensitive)", required: true
         input "polling", "text", title: "Polling Interval (mins)", required: true, defaultValue: "15", range: 2..59
         input name: "logEnable", type: "bool", title: "Enable debug logging", defaultValue: true
@@ -94,7 +94,7 @@ void setStatus() {
 }
 
 void doorAction(String action) {
-    log.debug "Initiating : ${action}"
+    if (logEnable) log.debug "Initiating : ${action}"
     String lock_id = state.lastLockId
     Map<String, Objects> data = [
             "path": "/smartlock/" + lock_id + "/action",
@@ -251,7 +251,7 @@ Map prepareNukiApi(Map data) {
 void updateCheck(){
     setVersion()
     String updateMsg = ""
-    Map params = [uri: "https://raw.githubusercontent.com/vpsupun/hubitat-eaton-xcomfort/master/resources/version.json", contentType: "application/json; charset=utf-8"]
+    Map params = [uri: "https://raw.githubusercontent.com/vpsupun/hubitat/master/resources/version.json", contentType: "application/json; charset=utf-8"]
     try {
         httpGet(params) { resp ->
             if (logEnable) log.debug " Version Checking - Response Data: ${resp.data}"

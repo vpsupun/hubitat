@@ -18,12 +18,12 @@ import groovy.json.*
 import groovy.transform.Field
 
 void setVersion(){
-    state.version = "0.0.2"
+    state.version = "0.0.3"
     state.appName = "IthoNRG"
 }
 
 metadata {
-    definition(name: "Itho NRG Wi-Fi Controller", namespace: "community", author: "Supun Vidana Pathiranage", importUrl: "https://raw.githubusercontent.com/vpsupun/hubitat-eaton-xcomfort/master/IthoNRG.groovy") {
+    definition(name: "Itho NRG Wi-Fi Controller", namespace: "community", author: "Supun Vidana Pathiranage", importUrl: "https://raw.githubusercontent.com/vpsupun/hubitat/master/IthoNRG/IthoNRG.groovy") {
         capability "Fan Control"
         capability "Refresh"
         capability "Polling"
@@ -134,7 +134,7 @@ String httpCall(String url) {
 void updateCheck(){
     setVersion()
     String updateMsg = ""
-    Map params = [uri: "https://raw.githubusercontent.com/vpsupun/hubitat-eaton-xcomfort/master/resources/version.json", contentType: "application/json; charset=utf-8"]
+    Map params = [uri: "https://raw.githubusercontent.com/vpsupun/hubitat/master/resources/version.json", contentType: "application/json; charset=utf-8"]
     try {
         httpGet(params) { resp ->
             if (logEnable) log.debug " Version Checking - Response Data: ${resp.data}"
