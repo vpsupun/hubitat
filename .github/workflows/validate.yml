@@ -1,0 +1,36 @@
+name: Validate
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Validate JSON manifests and version consistency
+        run: python tools/validate.py
+
+      - name: Install Groovy
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y groovy
+
+      - name: Groovy syntax check
+        run: |
+          mkdir -p /tmp/groovyc-out
+          find . -name '*.groovy' -print0 | while IFS= read -r -d '' f; do
+            echo "== $f"
+            groovyc -d /tmp/groovyc-out "$f"
+          done

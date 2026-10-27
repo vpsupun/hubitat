@@ -18,12 +18,12 @@ import groovy.json.*
 import groovy.transform.Field
 
 void setVersion(){
-    state.version = "0.0.4"
+    state.version = "0.0.5"
     state.appName = "EatonXComfortDimmer"
 }
 
 metadata {
-    definition(name: "Eaton XComfort Dimmer", namespace: "community", author: "Supun Vidana Pathiranage", importUrl: "https://raw.githubusercontent.com/vpsupun/hubitat-eaton-xcomfort/master/EatonXComfort.groovy") {
+    definition(name: "Eaton XComfort Dimmer", namespace: "community", author: "Supun Vidana Pathiranage", importUrl: "https://raw.githubusercontent.com/vpsupun/hubitat/master/EatonXComfortDimmer.groovy") {
         capability "Actuator"
         capability "Switch"
         capability "SwitchLevel"
@@ -276,7 +276,7 @@ def prepareHttpParams(String method, List params = []) {
 void updateCheck(){
     setVersion()
     String updateMsg = ""
-    Map params = [uri: "https://raw.githubusercontent.com/vpsupun/hubitat-eaton-xcomfort/master/resources/version.json", contentType: "application/json; charset=utf-8"]
+    Map params = [uri: "https://raw.githubusercontent.com/vpsupun/hubitat/master/resources/version.json", contentType: "application/json; charset=utf-8"]
     try {
         httpGet(params) { resp ->
             if (logEnable) log.debug " Version Checking - Response Data: ${resp.data}"

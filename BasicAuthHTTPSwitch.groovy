@@ -5,7 +5,7 @@
  *
  */
 metadata {
-    definition(name: "Basic Auth HTTP/HTTPS Switch", namespace: "community", author: "Supun Vidana Pathiranage", importUrl: "https://raw.githubusercontent.com/vpsupun/hubitat-eaton-xcomfort/master/BasicAuthHTTPSwitch.groovy") {
+    definition(name: "Basic Auth HTTP/HTTPS Switch", namespace: "community", author: "Supun Vidana Pathiranage", importUrl: "https://raw.githubusercontent.com/vpsupun/hubitat/master/BasicAuthHTTPSwitch.groovy") {
         capability "Actuator"
         capability "Switch"
         capability "Sensor"
@@ -96,6 +96,15 @@ def prepareHttpParams(String data = null) {
 
     httpParams.headers = headers
 
-    if (logEnable) log.debug "List of HTTP parameters : ${httpParams}"
+    if (logEnable) log.debug "List of HTTP parameters : ${redactParams(httpParams)}"
     return httpParams
+}
+
+Map redactParams(Map params) {
+    Map redacted = new LinkedHashMap(params)
+    if (params.headers?.Authorization) {
+        redacted.headers = new LinkedHashMap(params.headers)
+        redacted.headers.Authorization = "Basic ****"
+    }
+    return redacted
 }

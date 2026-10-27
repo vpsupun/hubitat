@@ -1,31 +1,31 @@
 {
-  "version": "0.0.1",
+  "version": "0.0.2",
   "comment": "Version information",
   "author": "Supun Vidana Pathiranage",
   "driver": {
     "EatonXComfortSwitch": {
-      "version": "0.0.4",
-      "updateInfo": "<br>- Auto discover zone and device ID"
+      "version": "0.0.5",
+      "updateInfo": "<br>- Fixed broken update-check and import URLs"
     },
     "EatonXComfortDimmer": {
-      "version": "0.0.4",
-      "updateInfo": "<br>- Auto discover zone and device ID"
+      "version": "0.0.5",
+      "updateInfo": "<br>- Fixed broken update-check and import URLs"
     },
     "EnvoyLocalData": {
-      "version": "0.0.7",
-      "updateInfo": "<br>- Driver path updated to support HPM integration"
+      "version": "0.0.8",
+      "updateInfo": "<br>- Secrets are now masked in debug logs<br>- JWT no longer exposed as a device attribute<br>- SSL verification is now a preference (required off for Envoy self-signed cert)"
     },
     "NukiWebAPI": {
-      "version": "0.0.6",
-      "updateInfo": "<br>- Driver path updated to support HPM integration"
+      "version": "0.0.7",
+      "updateInfo": "<br>- API token field now masked (password type)"
     },
     "IthoNRG": {
-      "version": "0.0.2",
-      "updateInfo": "<br>- Driver path updated to support HPM integration"
+      "version": "0.0.3",
+      "updateInfo": "<br>- Fixed broken update-check and import URLs"
     },
     "RitualsPerfumeGenie": {
-      "version": "0.0.2",
-      "updateInfo": "<br>- First release"
+      "version": "0.0.4",
+      "updateInfo": "<br>- API token masked in debug logs and no longer stored as a device attribute"
     }
   }
 }

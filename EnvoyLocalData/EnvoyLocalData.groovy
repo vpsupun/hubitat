@@ -18,12 +18,12 @@
  */
 
 void setVersion(){
-    state.version = "0.0.7"
+    state.version = "0.0.8"
     state.appName = "EnvoyLocalData"
 }
 
 metadata {
-    definition(name: "Enphase Envoy-S Production Data", namespace: "community", author: "Supun Vidana Pathiranage", importUrl: "https://raw.githubusercontent.com/vpsupun/hubitat-eaton-xcomfort/master/EnvoyLocalData.groovy") {
+    definition(name: "Enphase Envoy-S Production Data", namespace: "community", author: "Supun Vidana Pathiranage", importUrl: "https://raw.githubusercontent.com/vpsupun/hubitat/master/EnvoyLocalData/EnvoyLocalData.groovy") {
         capability "Sensor"
         capability "Power Meter"
         capability "Energy Meter"
@@ -38,7 +38,6 @@ metadata {
         attribute "consumption_energy_last7days", "number"
         attribute "consumption_energy_life", "number"
         attribute "consumption_energy_now", "number"
-        attribute "jwt_token", "string"
     }
 }
 
@@ -49,6 +48,7 @@ preferences {
         input "pass", "password", title: "Enlighten password", required: true
         input "serial", "text", title: "Envoy Serial Number", required: true
         input "polling", "text", title: "Polling Interval (mins)", required: true, defaultValue: "15", range: 2..59
+        input name: "ignoreSSL", type: "bool", title: "Ignore SSL errors (required for Envoy self-signed certificate)", defaultValue: true
         input name: "logEnable", type: "bool", title: "Enable debug logging", defaultValue: true
     }
 }
@@ -89,7 +89,7 @@ void pullData() {
                 "uri"               : production_url,
                 "contentType"       : "application/json",
                 "requestContentType": "application/json",
-                "ignoreSSLIssues"   : true,
+                "ignoreSSLIssues"   : settings.ignoreSSL,
                 "headers"           : headers
         ]
 
@@ -140,7 +140,7 @@ boolean isValidToken(String token) {
             "uri"               : token_check_url,
             "contentType"       : "text/html",
             "requestContentType": "application/json",
-            "ignoreSSLIssues"   : true,
+            "ignoreSSLIssues"   : settings.ignoreSSL,
             "headers"           : headers
     ]
     try {
@@ -177,7 +177,7 @@ String getSession() {
     try {
         httpPost(httpParams) { resp ->
             if (logEnable) {
-                if (resp.data) log.debug "${resp.data}"
+                if (resp.data) log.debug "${redactSessionData(resp.data)}"
             }
             if (resp.success) {
                 session = resp.data?.session_id
@@ -187,7 +187,7 @@ String getSession() {
         log.warn "HTTP post failed: ${e.message}"
     }
 
-    if (logEnable) log.debug "Session Id: ${session}"
+    if (logEnable) log.debug "Session Id: ${maskSecret(session)}"
     return session
 }
 
@@ -210,7 +210,6 @@ String getToken() {
         if (session != null) {
             String token_generated = generateToken(session)
             if (token_generated != null && isValidToken(token_generated)) {
-                sendEvent(name: "jwt_token", value: token_generated, displayed: false)
                 state.jwt_token = token_generated
                 valid_token = token_generated
             } else {
@@ -240,11 +239,11 @@ String generateToken(String session_id) {
             "requestContentType": "application/json",
             "body"              : data
     ]
-    if (logEnable) log.debug "HTTP params: ${httpParams}"
+    if (logEnable) log.debug "HTTP params: ${redactParams(httpParams)}"
     try {
         httpPost(httpParams) { resp ->
             if (logEnable) {
-                if (resp.data) log.debug "HTTP response: ${resp.data}"
+                if (resp.data) log.debug "HTTP response: ${maskSecret(resp.data?.toString())}"
             }
             if (resp.success) {
                 token = resp.data
@@ -253,14 +252,37 @@ String generateToken(String session_id) {
     } catch (Exception e) {
         log.warn "HTTP post failed: ${e.message}"
     }
-    if (logEnable) log.debug "Generated token : ${token}"
+    if (logEnable) log.debug "Generated token : ${maskSecret(token)}"
     return token
+}
+
+String maskSecret(String secret) {
+    if (secret == null) return "****"
+    return secret.length() <= 8 ? "****" : secret.substring(0, 4) + "****(${secret.length()} chars)"
+}
+
+Map redactParams(Map params) {
+    Map redacted = new LinkedHashMap(params)
+    if (params.body instanceof Map && params.body.session_id) {
+        redacted.body = new LinkedHashMap(params.body)
+        redacted.body.session_id = maskSecret(params.body.session_id.toString())
+    }
+    return redacted
+}
+
+def redactSessionData(data) {
+    if (data instanceof Map && data.session_id) {
+        Map redacted = new LinkedHashMap(data)
+        redacted.session_id = maskSecret(data.session_id.toString())
+        return redacted
+    }
+    return data
 }
 
 void updateCheck(){
     setVersion()
     String updateMsg = ""
-    Map params = [uri: "https://raw.githubusercontent.com/vpsupun/hubitat-eaton-xcomfort/master/resources/version.json", contentType: "application/json; charset=utf-8"]
+    Map params = [uri: "https://raw.githubusercontent.com/vpsupun/hubitat/master/resources/version.json", contentType: "application/json; charset=utf-8"]
     try {
         httpGet(params) { resp ->
             if (logEnable) log.debug " Version Checking - Response Data: ${resp.data}"
