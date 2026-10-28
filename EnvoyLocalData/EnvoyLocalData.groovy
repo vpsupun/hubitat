@@ -18,7 +18,7 @@
  */
 
 void setVersion(){
-    state.version = "0.0.8"
+    state.version = "0.0.9"
     state.appName = "EnvoyLocalData"
 }
 
@@ -89,7 +89,7 @@ void pullData() {
                 "uri"               : production_url,
                 "contentType"       : "application/json",
                 "requestContentType": "application/json",
-                "ignoreSSLIssues"   : settings.ignoreSSL,
+                "ignoreSSLIssues"   : settings.ignoreSSL != false,
                 "headers"           : headers
         ]
 
@@ -140,7 +140,7 @@ boolean isValidToken(String token) {
             "uri"               : token_check_url,
             "contentType"       : "text/html",
             "requestContentType": "application/json",
-            "ignoreSSLIssues"   : settings.ignoreSSL,
+            "ignoreSSLIssues"   : settings.ignoreSSL != false,
             "headers"           : headers
     ]
     try {
