@@ -12,8 +12,8 @@
       "updateInfo": "<br>- Fixed broken update-check and import URLs"
     },
     "EnvoyLocalData": {
-      "version": "0.0.10",
-      "updateInfo": "<br>- Fix zero daily energy: read /api/v1/production + /api/v1/consumption (/api/v1/energy reports wattHoursToday 0 on newer firmware)"
+      "version": "0.0.11",
+      "updateInfo": "<br>- Metered Envoys: read CT (eim) data from /production.json (/api/v1 endpoints are stale or zero on D8.x); today/7-day derived from daily lifetime snapshots"
     },
     "NukiWebAPI": {
       "version": "0.0.7",
