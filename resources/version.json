@@ -12,8 +12,8 @@
       "updateInfo": "<br>- Fixed broken update-check and import URLs"
     },
     "EnvoyLocalData": {
-      "version": "0.0.8",
-      "updateInfo": "<br>- Secrets are now masked in debug logs<br>- JWT no longer exposed as a device attribute<br>- SSL verification is now a preference (required off for Envoy self-signed cert)"
+      "version": "0.0.9",
+      "updateInfo": "<br>- Fix SSL preference default on existing devices (cert validation error on check_jwt)"
     },
     "NukiWebAPI": {
       "version": "0.0.7",
