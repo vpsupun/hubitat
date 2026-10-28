@@ -3,8 +3,8 @@
  *
  * Hubitat connecting to the Enphase Envoy-S (metered) with new firmware that requires a token to access local data
  *
- * Production output from Envoy : [wattHoursToday:xx, wattHoursSevenDays:xx, wattHoursLifetime:xx, wattsNow:xx]
- * Consumption data from Envoy : [wattHoursToday:xx, wattHoursSevenDays:xx, wattHoursLifetime:xx, wattsNow:xx]
+ * Production output from /api/v1/production : [wattHoursToday:xx, wattHoursSevenDays:xx, wattHoursLifetime:xx, wattsNow:xx]
+ * Consumption data from /api/v1/consumption : [wattHoursToday:xx, wattHoursSevenDays:xx, wattHoursLifetime:xx, wattsNow:xx]
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in
  *  compliance with the License. You may obtain a copy of the License at:
@@ -18,7 +18,7 @@
  */
 
 void setVersion(){
-    state.version = "0.0.9"
+    state.version = "0.0.10"
     state.appName = "EnvoyLocalData"
 }
 
@@ -76,54 +76,66 @@ void refresh() {
 
 void pullData() {
     String ip = settings.ip - "https://" - "http://" - "/"
-    String production_url = "https://" + ip + "/api/v1/energy"
-    List energy_data = []
 
     if (logEnable) log.debug "Pulling data..."
     String token = getToken()
-    if (token != null) {
-        Map<String> headers = [
-                "Authorization": "Bearer " + token
-        ]
-        Map<String, Object> httpParams = [
-                "uri"               : production_url,
-                "contentType"       : "application/json",
-                "requestContentType": "application/json",
-                "ignoreSSLIssues"   : settings.ignoreSSL != false,
-                "headers"           : headers
-        ]
-
-        try {
-            httpGet(httpParams) { resp ->
-                if (logEnable) {
-                    if (resp.data) log.debug "${resp.data}"
-                }
-                if (resp.success) {
-                    energy_data = resp.data
-                }
-            }
-        } catch (Exception e) {
-            log.warn "HTTP get failed: ${e.message}"
-        }
-
-        Map production_data = energy_data.find{ it.type == 'Production' }
-        Map consumption_data = energy_data.find{ it.type == 'Consumption' }
-        Integer net_metering = (production_data?.wattsNow - consumption_data?.wattsNow) as Integer
-
-        sendEvent(name: "production_energy_today", value: production_data?.wattHoursToday, displayed: false)
-        sendEvent(name: "production_energy_last7days", value: production_data?.wattHoursSevenDays, displayed: false)
-        sendEvent(name: "production_energy_life", value: production_data?.wattHoursLifetime, displayed: false)
-        sendEvent(name: "production_energy_now", value: production_data?.wattsNow, isStateChange: true)
-
-        sendEvent(name: "consumption_energy_today", value: consumption_data?.wattHoursToday, displayed: false)
-        sendEvent(name: "consumption_energy_last7days", value: consumption_data?.wattHoursSevenDays, displayed: false)
-        sendEvent(name: "consumption_energy_life", value: consumption_data?.wattHoursLifetime, displayed: false)
-        sendEvent(name: "consumption_energy_now", value: consumption_data?.wattsNow, isStateChange: true)
-
-        sendEvent(name: "power", value: net_metering, unit: "w", isStateChange: true)
-
-    } else
+    if (token == null) {
         log.warn "Unable to get a valid token. Aborting..."
+        return
+    }
+
+    Map<String> headers = [
+            "Authorization": "Bearer " + token
+    ]
+    Map production_data = fetchJson("https://" + ip + "/api/v1/production", headers)
+    Map consumption_data = fetchJson("https://" + ip + "/api/v1/consumption", headers)
+
+    if (production_data != [:]) {
+        sendEvent(name: "production_energy_today", value: production_data.wattHoursToday, displayed: false)
+        sendEvent(name: "production_energy_last7days", value: production_data.wattHoursSevenDays, displayed: false)
+        sendEvent(name: "production_energy_life", value: production_data.wattHoursLifetime, displayed: false)
+        sendEvent(name: "production_energy_now", value: production_data.wattsNow, isStateChange: true)
+    } else {
+        log.warn "No production data received"
+    }
+
+    if (consumption_data != [:]) {
+        sendEvent(name: "consumption_energy_today", value: consumption_data.wattHoursToday, displayed: false)
+        sendEvent(name: "consumption_energy_last7days", value: consumption_data.wattHoursSevenDays, displayed: false)
+        sendEvent(name: "consumption_energy_life", value: consumption_data.wattHoursLifetime, displayed: false)
+        sendEvent(name: "consumption_energy_now", value: consumption_data.wattsNow, isStateChange: true)
+    } else {
+        if (logEnable) log.debug "No consumption data (unit may lack consumption CTs)"
+    }
+
+    if (production_data?.wattsNow != null && consumption_data?.wattsNow != null) {
+        Integer net_metering = (production_data.wattsNow - consumption_data.wattsNow) as Integer
+        sendEvent(name: "power", value: net_metering, unit: "w", isStateChange: true)
+    }
+}
+
+Map fetchJson(String url, Map headers) {
+    Map data = [:]
+    Map<String, Object> httpParams = [
+            "uri"               : url,
+            "contentType"       : "application/json",
+            "requestContentType": "application/json",
+            "ignoreSSLIssues"   : settings.ignoreSSL != false,
+            "headers"           : headers
+    ]
+    try {
+        httpGet(httpParams) { resp ->
+            if (logEnable) {
+                if (resp.data) log.debug "${resp.data}"
+            }
+            if (resp.success && resp.data instanceof Map) {
+                data = resp.data
+            }
+        }
+    } catch (Exception e) {
+        log.warn "HTTP get failed: ${e.message}"
+    }
+    return data
 }
 
 boolean isValidToken(String token) {
