@@ -12,8 +12,8 @@
       "updateInfo": "<br>- Minor logging fix in the update checker"
     },
     "EnvoyLocalData": {
-      "version": "0.0.11",
-      "updateInfo": "<br>- Metered Envoys: read CT (eim) data from /production.json (/api/v1 endpoints are stale or zero on D8.x); today/7-day derived from daily lifetime snapshots"
+      "version": "0.0.12",
+      "updateInfo": "<br>- Token validation no longer runs every poll (cached token trusted; refresh on 401)<br>- Hardened CT parsing + consumption fallback; energy events fire only on change"
     },
     "NukiWebAPI": {
       "version": "0.0.8",
