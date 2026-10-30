@@ -3,8 +3,10 @@
  *
  * Hubitat connecting to the Enphase Envoy-S (metered) with new firmware that requires a token to access local data
  *
- * Production output from /api/v1/production : [wattHoursToday:xx, wattHoursSevenDays:xx, wattHoursLifetime:xx, wattsNow:xx]
- * Consumption data from /api/v1/consumption : [wattHoursToday:xx, wattHoursSevenDays:xx, wattHoursLifetime:xx, wattsNow:xx]
+ * Metered Envoys: production & consumption CT (eim) data from /production.json?details=1
+ *   (/api/v1/production and /api/v1/consumption are stale or zero on metered D8.x firmware)
+ * Non-metered Envoys fall back to /api/v1/production and /api/v1/consumption :
+ *   [wattHoursToday:xx, wattHoursSevenDays:xx, wattHoursLifetime:xx, wattsNow:xx]
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in
  *  compliance with the License. You may obtain a copy of the License at:
@@ -18,7 +20,7 @@
  */
 
 void setVersion(){
-    state.version = "0.0.10"
+    state.version = "0.0.11"
     state.appName = "EnvoyLocalData"
 }
 
@@ -87,8 +89,16 @@ void pullData() {
     Map<String> headers = [
             "Authorization": "Bearer " + token
     ]
-    Map production_data = fetchJson("https://" + ip + "/api/v1/production", headers)
-    Map consumption_data = fetchJson("https://" + ip + "/api/v1/consumption", headers)
+    Map production_data
+    Map consumption_data
+    Map metered_data = fetchMeteredData("https://" + ip + "/production.json?details=1", headers)
+    if (metered_data != [:]) {
+        production_data = metered_data.production
+        consumption_data = metered_data.consumption
+    } else {
+        production_data = fetchJson("https://" + ip + "/api/v1/production", headers)
+        consumption_data = fetchJson("https://" + ip + "/api/v1/consumption", headers)
+    }
 
     if (production_data != [:]) {
         sendEvent(name: "production_energy_today", value: production_data.wattHoursToday, displayed: false)
@@ -112,6 +122,57 @@ void pullData() {
         Integer net_metering = (production_data.wattsNow - consumption_data.wattsNow) as Integer
         sendEvent(name: "power", value: net_metering, unit: "w", isStateChange: true)
     }
+}
+
+// Returns [production: [...], consumption: [...]] in the /api/v1 field format, or [:] when the
+// Envoy has no active production CT (non-metered), so the caller can fall back to /api/v1.
+Map fetchMeteredData(String url, Map headers) {
+    Map data = fetchJson(url, headers)
+    Map production_eim = data.production?.find { it.type == "eim" && it.measurementType == "production" && it.activeCount > 0 }
+    if (production_eim == null) {
+        if (logEnable) log.debug "No active production CT data, falling back to /api/v1"
+        return [:]
+    }
+    Map total_eim = data.consumption?.find { it.type == "eim" && it.measurementType == "total-consumption" && it.activeCount > 0 }
+    Map net_eim = data.consumption?.find { it.type == "eim" && it.measurementType == "net-consumption" && it.activeCount > 0 }
+
+    BigDecimal production_now = production_eim.wNow as BigDecimal
+    BigDecimal production_life = production_eim.whLifetime as BigDecimal
+    Map metered_data = [production: deriveEnergyTotals("production", production_now, production_life), consumption: [:]]
+
+    if (total_eim != null) {
+        BigDecimal consumption_now = total_eim.wNow as BigDecimal
+        BigDecimal consumption_life = total_eim.whLifetime as BigDecimal
+        // D8.3.5433 can report total-consumption identical to net-consumption; add production back
+        if (net_eim != null && consumption_now == (net_eim.wNow as BigDecimal) && consumption_life == (net_eim.whLifetime as BigDecimal)) {
+            consumption_now += production_now
+            consumption_life += production_life
+        }
+        metered_data.consumption = deriveEnergyTotals("consumption", consumption_now, consumption_life)
+    }
+    return metered_data
+}
+
+// The Envoy's own whToday/whLastSevenDays are unreliable on metered D8.x firmware (they mirror
+// the lifetime counter), so derive them from the lifetime counter seen at the first poll of each day.
+// The first day after install only counts from that first poll.
+Map deriveEnergyTotals(String side, BigDecimal watts_now, BigDecimal wh_lifetime) {
+    String today = new Date().format("yyyy-MM-dd", location.timeZone)
+    String key = "${side}_day_start"
+    Map day_start = state[key] ?: [:]
+    if (!day_start.containsKey(today)) {
+        day_start[today] = wh_lifetime
+        List<String> days = day_start.keySet().sort()
+        if (days.size() > 7) days.take(days.size() - 7).each { day_start.remove(it) }
+        state[key] = day_start
+    }
+    String week_start = day_start.keySet().sort().first()
+    return [
+            wattsNow          : Math.round(watts_now.toDouble()) as Integer,
+            wattHoursLifetime : Math.round(wh_lifetime.toDouble()),
+            wattHoursToday    : Math.round((wh_lifetime - (day_start[today] as BigDecimal)).toDouble()),
+            wattHoursSevenDays: Math.round((wh_lifetime - (day_start[week_start] as BigDecimal)).toDouble())
+    ]
 }
 
 Map fetchJson(String url, Map headers) {
