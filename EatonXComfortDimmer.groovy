@@ -18,7 +18,7 @@ import groovy.json.*
 import groovy.transform.Field
 
 void setVersion(){
-    state.version = "0.0.5"
+    state.version = "0.0.6"
     state.appName = "EatonXComfortDimmer"
 }
 
@@ -280,7 +280,7 @@ void updateCheck(){
     try {
         httpGet(params) { resp ->
             if (logEnable) log.debug " Version Checking - Response Data: ${resp.data}"
-            if (logEnable) log.debug " ${state.appName} Debug Driver info : ${resp.data.driver.EatonXComfort}"
+            if (logEnable) log.debug " ${state.appName} Debug Driver info : ${resp.data.driver.get(state.appName)}"
             Map driverInfo = resp.data.driver.get(state.appName)
             if (driverInfo != null) {
                 if (logEnable) log.debug " Debug Driver info : ${driverInfo}"
