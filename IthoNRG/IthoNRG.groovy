@@ -18,7 +18,7 @@ import groovy.json.*
 import groovy.transform.Field
 
 void setVersion(){
-    state.version = "0.0.3"
+    state.version = "0.0.4"
     state.appName = "IthoNRG"
 }
 
@@ -70,7 +70,7 @@ void poll() {
 
 void updateFanSpeed() {
     String currentSpeed = getFanSpeed()
-    sendEvent("name":"speed", "value":currentSpeed)
+    sendEvent("name":"speed", "value":currentSpeed, isStateChange: true)
 }
 
 String getFanSpeed() {
@@ -85,7 +85,7 @@ void setFanSpeed(String fanSpeed) {
     String url = "http://" + settings.IP + "/api.html?speed=" + fanSpeedValue
     String returnMsg = httpCall(url)
     if (returnMsg == "OK") {
-        sendEvent("name":"speed", "value":fanSpeed)
+        sendEvent("name":"speed", "value":fanSpeed, isStateChange: true)
     }
 }
 
@@ -138,7 +138,7 @@ void updateCheck(){
     try {
         httpGet(params) { resp ->
             if (logEnable) log.debug " Version Checking - Response Data: ${resp.data}"
-            if (logEnable) log.debug " ${state.appName} Debug Driver info : ${resp.data.driver.EatonXComfort}"
+            if (logEnable) log.debug " ${state.appName} Debug Driver info : ${resp.data.driver.get(state.appName)}"
             Map driverInfo = resp.data.driver.get(state.appName)
             if (driverInfo != null) {
                 if (logEnable) log.debug " Debug Driver info : ${driverInfo}"

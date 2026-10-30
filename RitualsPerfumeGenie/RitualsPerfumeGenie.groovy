@@ -19,7 +19,7 @@ import groovy.transform.Field
 import groovy.json.JsonSlurper
 
 void setVersion(){
-    state.version = "0.0.4"
+    state.version = "0.0.5"
     state.appName = "RitualsPerfumeGenie"
 }
 
@@ -150,8 +150,9 @@ String setToken() {
     }
 }
 
-List getGenieData(String token) {
-    List hubs
+def getGenieData(String token) {
+    def hubs
+    Integer http_status = 0
     String hub_url = "https://rituals.apiv2.sense-company.com/apiv2/account/hubs"
     if (logEnable) log.debug "Fetching hubs"
     Map<String, Object> httpParams = [
@@ -161,6 +162,7 @@ List getGenieData(String token) {
     ]
     try {
         httpGet(httpParams) { resp ->
+            http_status = resp.status as Integer
             if (logEnable) {
                 if (resp.data) log.debug "HTTP response: ${resp.data}"
             }
@@ -171,7 +173,27 @@ List getGenieData(String token) {
     } catch (Exception e) {
         log.warn "HTTP get failed: ${e.message}"
     }
+    if (http_status == 401 || hubs?.status == "Unauthorized") return "unauthorized"
     return hubs
+}
+
+Map fetchHubAttr(String hub_hash, String token, String path) {
+    Map data = null
+    String url = "https://rituals.apiv2.sense-company.com/apiv2/hubs/${hub_hash}/${path}"
+    Map<String, Object> httpParams = [
+            "uri"               : url,
+            "contentType"       : "application/json",
+            "headers"           : ["Accept": "*/*", "Authorization": token]
+    ]
+    try {
+        httpGet(httpParams) { resp ->
+            if (resp.status == 401) log.warn "HTTP 401 on ${path} - token may have expired"
+            if (resp.success) data = resp.data as Map
+        }
+    } catch (Exception e) {
+        log.warn "HTTP GET failed: ${e.message}"
+    }
+    return data
 }
 
 String setGenie() {
@@ -183,7 +205,7 @@ String setGenie() {
         setToken()
         token = state.lastToken
     }
-    List hubs = getGenieData(token)
+    def hubs = getGenieData(token)
     if (hubs instanceof List && hubs.size() >= 1) {
         def targetDevice = hubs.find { device ->
             try { return device?.attributeValues?.roomnamec == genie_name } catch (ignored) { return false }
@@ -274,71 +296,39 @@ void setStatus(boolean retried = false) {
     String hub_hash = state.genie_id
     String token = state.lastToken
     if (!hub_hash || !token) { if (logEnable) log.debug "Status skipped: missing hub or token"; return }
-    try {
-        Map fanc
-        Map speed
-        Map wific
-        Map fillc
-        def fancParams = [
-                uri: "https://rituals.apiv2.sense-company.com/apiv2/hubs/${hub_hash}/attributes/fanc",
-                contentType: "application/json",
-                headers: ["Accept": "*/*", "Authorization": token]
-        ]
-        httpGet(fancParams) { resp ->
-            if (resp.status == 401 || (resp.data?.status == "Unauthorized") || (resp.data?.success == "false")) {
-                if (!retried) { setToken(); setStatus(true); return }
-            }
-            if (resp.success) fanc = resp.data as Map
-        }
-        def speedParams = [
-                uri: "https://rituals.apiv2.sense-company.com/apiv2/hubs/${hub_hash}/attributes/speedc",
-                contentType: "application/json",
-                headers: ["Accept": "*/*", "Authorization": token]
-        ]
-        httpGet(speedParams) { resp ->
-            if (resp.status == 401 || (resp.data?.status == "Unauthorized") || (resp.data?.success == "false")) {
-                if (!retried) { setToken(); setStatus(true); return }
-            }
-            if (resp.success) speed = resp.data as Map
-        }
-        def wificParams = [
-                uri: "https://rituals.apiv2.sense-company.com/apiv2/hubs/${hub_hash}/sensors/wific",
-                contentType: "application/json",
-                headers: ["Accept": "*/*", "Authorization": token]
-        ]
-        httpGet(wificParams) { resp ->
-            if (resp.status == 401 || (resp.data?.status == "Unauthorized") || (resp.data?.success == "false")) {
-                if (!retried) { setToken(); setStatus(true); return }
-            }
-            if (resp.success) wific = resp.data as Map
-        }
-        def fillcParams = [
-                uri: "https://rituals.apiv2.sense-company.com/apiv2/hubs/${hub_hash}/sensors/fillc",
-                contentType: "application/json",
-                headers: ["Accept": "*/*", "Authorization": token]
-        ]
-        httpGet(fillcParams) { resp ->
-            if (resp.status == 401 || (resp.data?.status == "Unauthorized") || (resp.data?.success == "false")) {
-                if (!retried) { setToken(); setStatus(true); return }
-            }
-            if (resp.success) fillc = resp.data as Map
-        }
-        String fancVal = (fanc?.value as String) ?: "0"
-        String sw = (fancVal == "1") ? "on" : "off"
-        sendEvent(name: "switch", value: sw, isStateChange: true)
-        Integer spd = (speed?.value as Integer) ?: 1
-        sendEvent(name: "speed", value: spd, isStateChange: true)
 
-        Integer wifiPct = mapWifiIconToPct(wific?.icon as String)
-        if (wifiPct != null) {
-            sendEvent(name: "wifi_percentage", value: wifiPct, unit: "%", isStateChange: true)
-        }
-        String fillTitle = (fillc?.title as String)
-        if (fillTitle) {
-            sendEvent(name: "cartridge_fill", value: fillTitle, isStateChange: true)
-        }
-    } catch (Exception e) {
-        log.warn "HTTP GET failed: ${e.message}"
+    // Fast path: one call - the hubs list carries each hub's last-known attribute values.
+    Map av = [:]
+    def hubs = getGenieData(token)
+    if (hubs == "unauthorized") {
+        if (!retried) { setToken(); setStatus(true) } else { log.warn "Still unauthorized after token refresh" }
+        return
+    }
+    if (hubs instanceof List) {
+        def hub = hubs.find { (it.hash ?: it.hublot) == hub_hash }
+        if (hub?.attributeValues instanceof Map) av = hub.attributeValues
+    }
+
+    // Per-attribute fallback for anything the hub snapshot does not carry
+    // (e.g. sensor icon/title), keeping the previous behaviour as worst case.
+    Map fanc  = av.fanc  instanceof Map ? av.fanc  : fetchHubAttr(hub_hash, token, "attributes/fanc")
+    Map speed = av.speedc instanceof Map ? av.speedc : fetchHubAttr(hub_hash, token, "attributes/speedc")
+    Map wific = av.wific instanceof Map ? av.wific : fetchHubAttr(hub_hash, token, "sensors/wific")
+    Map fillc = av.fillc instanceof Map ? av.fillc : fetchHubAttr(hub_hash, token, "sensors/fillc")
+
+    String fancVal = (fanc?.value as String) ?: "0"
+    String sw = (fancVal == "1") ? "on" : "off"
+    sendEvent(name: "switch", value: sw, isStateChange: true)
+    Integer spd = (speed?.value as Integer) ?: 1
+    sendEvent(name: "speed", value: spd, isStateChange: true)
+
+    Integer wifiPct = mapWifiIconToPct(wific?.icon as String)
+    if (wifiPct != null) {
+        sendEvent(name: "wifi_percentage", value: wifiPct, unit: "%", isStateChange: true)
+    }
+    String fillTitle = (fillc?.title as String)
+    if (fillTitle) {
+        sendEvent(name: "cartridge_fill", value: fillTitle, isStateChange: true)
     }
 }
 
@@ -365,7 +355,7 @@ void updateCheck(){
     try {
         httpGet(params) { resp ->
             if (logEnable) log.debug " Version Checking - Response Data: ${resp.data}"
-            if (logEnable) log.debug " ${state.appName} Debug Driver info : ${resp.data.driver.EatonXComfort}"
+            if (logEnable) log.debug " ${state.appName} Debug Driver info : ${resp.data.driver.get(state.appName)}"
             Map driverInfo = resp.data.driver.get(state.appName)
             if (driverInfo != null) {
                 if (logEnable) log.debug " Debug Driver info : ${driverInfo}"
