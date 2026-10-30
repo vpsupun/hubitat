@@ -1,9 +1,9 @@
 {
   "packageName": "Envoy Local Data",
   "author": "Supun Vidana Pathiranage",
-  "version": "0.0.11",
+  "version": "0.0.12",
   "minimumHEVersion": "0.0",
-  "dateReleased": "2026-10-28",
+  "dateReleased": "2026-10-30",
   "drivers": [
     {
       "id": "3e361703-2eb5-40c1-948a-05f1b7b15d37",

@@ -20,7 +20,7 @@
  */
 
 void setVersion(){
-    state.version = "0.0.11"
+    state.version = "0.0.12"
     state.appName = "EnvoyLocalData"
 }
 
@@ -101,18 +101,18 @@ void pullData() {
     }
 
     if (production_data != [:]) {
-        sendEvent(name: "production_energy_today", value: production_data.wattHoursToday, displayed: false)
-        sendEvent(name: "production_energy_last7days", value: production_data.wattHoursSevenDays, displayed: false)
-        sendEvent(name: "production_energy_life", value: production_data.wattHoursLifetime, displayed: false)
+        sendEvent(name: "production_energy_today", value: production_data.wattHoursToday, displayed: false, isStateChange: true)
+        sendEvent(name: "production_energy_last7days", value: production_data.wattHoursSevenDays, displayed: false, isStateChange: true)
+        sendEvent(name: "production_energy_life", value: production_data.wattHoursLifetime, displayed: false, isStateChange: true)
         sendEvent(name: "production_energy_now", value: production_data.wattsNow, isStateChange: true)
     } else {
         log.warn "No production data received"
     }
 
     if (consumption_data != [:]) {
-        sendEvent(name: "consumption_energy_today", value: consumption_data.wattHoursToday, displayed: false)
-        sendEvent(name: "consumption_energy_last7days", value: consumption_data.wattHoursSevenDays, displayed: false)
-        sendEvent(name: "consumption_energy_life", value: consumption_data.wattHoursLifetime, displayed: false)
+        sendEvent(name: "consumption_energy_today", value: consumption_data.wattHoursToday, displayed: false, isStateChange: true)
+        sendEvent(name: "consumption_energy_last7days", value: consumption_data.wattHoursSevenDays, displayed: false, isStateChange: true)
+        sendEvent(name: "consumption_energy_life", value: consumption_data.wattHoursLifetime, displayed: false, isStateChange: true)
         sendEvent(name: "consumption_energy_now", value: consumption_data.wattsNow, isStateChange: true)
     } else {
         if (logEnable) log.debug "No consumption data (unit may lack consumption CTs)"
@@ -127,30 +127,44 @@ void pullData() {
 // Returns [production: [...], consumption: [...]] in the /api/v1 field format, or [:] when the
 // Envoy has no active production CT (non-metered), so the caller can fall back to /api/v1.
 Map fetchMeteredData(String url, Map headers) {
-    Map data = fetchJson(url, headers)
-    Map production_eim = data.production?.find { it.type == "eim" && it.measurementType == "production" && it.activeCount > 0 }
-    if (production_eim == null) {
-        if (logEnable) log.debug "No active production CT data, falling back to /api/v1"
+    try {
+        Map data = fetchJson(url, headers)
+        Map production_eim = data.production?.find { it.type == "eim" && it.measurementType == "production" && (it.activeCount ?: 0) > 0 }
+        if (production_eim == null) {
+            if (logEnable) log.debug "No active production CT data, falling back to /api/v1"
+            return [:]
+        }
+        Map total_eim = data.consumption?.find { it.type == "eim" && it.measurementType == "total-consumption" && (it.activeCount ?: 0) > 0 }
+        Map net_eim = data.consumption?.find { it.type == "eim" && it.measurementType == "net-consumption" && (it.activeCount ?: 0) > 0 }
+        if (production_eim.wNow == null || production_eim.whLifetime == null) {
+            if (logEnable) log.debug "Incomplete production CT data, falling back to /api/v1"
+            return [:]
+        }
+
+        BigDecimal production_now = production_eim.wNow as BigDecimal
+        BigDecimal production_life = production_eim.whLifetime as BigDecimal
+        Map metered_data = [production: deriveEnergyTotals("production", production_now, production_life), consumption: [:]]
+
+        if (total_eim != null && total_eim.wNow != null && total_eim.whLifetime != null) {
+            BigDecimal consumption_now = total_eim.wNow as BigDecimal
+            BigDecimal consumption_life = total_eim.whLifetime as BigDecimal
+            // D8.3.5433 can report total-consumption identical to net-consumption; add production back
+            if (net_eim != null && consumption_now == (net_eim.wNow as BigDecimal) && consumption_life == (net_eim.whLifetime as BigDecimal)) {
+                consumption_now += production_now
+                consumption_life += production_life
+            }
+            metered_data.consumption = deriveEnergyTotals("consumption", consumption_now, consumption_life)
+        } else if (net_eim != null && net_eim.wNow != null && net_eim.whLifetime != null) {
+            // No total-consumption meter: load = production + net (net positive = import)
+            BigDecimal consumption_now = (net_eim.wNow as BigDecimal) + production_now
+            BigDecimal consumption_life = (net_eim.whLifetime as BigDecimal) + production_life
+            metered_data.consumption = deriveEnergyTotals("consumption", consumption_now, consumption_life)
+        }
+        return metered_data
+    } catch (Exception e) {
+        log.warn "Metered data parse failed, falling back to /api/v1: ${e.message}"
         return [:]
     }
-    Map total_eim = data.consumption?.find { it.type == "eim" && it.measurementType == "total-consumption" && it.activeCount > 0 }
-    Map net_eim = data.consumption?.find { it.type == "eim" && it.measurementType == "net-consumption" && it.activeCount > 0 }
-
-    BigDecimal production_now = production_eim.wNow as BigDecimal
-    BigDecimal production_life = production_eim.whLifetime as BigDecimal
-    Map metered_data = [production: deriveEnergyTotals("production", production_now, production_life), consumption: [:]]
-
-    if (total_eim != null) {
-        BigDecimal consumption_now = total_eim.wNow as BigDecimal
-        BigDecimal consumption_life = total_eim.whLifetime as BigDecimal
-        // D8.3.5433 can report total-consumption identical to net-consumption; add production back
-        if (net_eim != null && consumption_now == (net_eim.wNow as BigDecimal) && consumption_life == (net_eim.whLifetime as BigDecimal)) {
-            consumption_now += production_now
-            consumption_life += production_life
-        }
-        metered_data.consumption = deriveEnergyTotals("consumption", consumption_now, consumption_life)
-    }
-    return metered_data
 }
 
 // The Envoy's own whToday/whLastSevenDays are unreliable on metered D8.x firmware (they mirror
@@ -176,7 +190,21 @@ Map deriveEnergyTotals(String side, BigDecimal watts_now, BigDecimal wh_lifetime
 }
 
 Map fetchJson(String url, Map headers) {
-    Map data = [:]
+    Map result = [data: [:], status: 0]
+    fetchJsonOnce(url, headers, result)
+    if (result.status == 401) {
+        if (logEnable) log.debug "Token rejected (HTTP 401), refreshing"
+        state.remove("jwt_token")
+        String new_token = getToken()
+        if (new_token != null) {
+            fetchJsonOnce(url, ["Authorization": "Bearer " + new_token], result)
+        }
+    }
+    return result.data
+}
+
+void fetchJsonOnce(String url, Map headers, Map result) {
+    result.status = 0
     Map<String, Object> httpParams = [
             "uri"               : url,
             "contentType"       : "application/json",
@@ -186,17 +214,17 @@ Map fetchJson(String url, Map headers) {
     ]
     try {
         httpGet(httpParams) { resp ->
+            result.status = resp.status as Integer
             if (logEnable) {
                 if (resp.data) log.debug "${resp.data}"
             }
             if (resp.success && resp.data instanceof Map) {
-                data = resp.data
+                result.data = resp.data
             }
         }
     } catch (Exception e) {
         log.warn "HTTP get failed: ${e.message}"
     }
-    return data
 }
 
 boolean isValidToken(String token) {
@@ -272,10 +300,12 @@ String getToken() {
         current_token = state.jwt_token
     } else if (device.currentValue("jwt_token", true) != null) {
         state.jwt_token = device.currentValue("jwt_token", true)
+        current_token = state.jwt_token
     }
     if (logEnable) log.debug "Retrieving the token"
-    if (current_token != null && isValidToken(current_token)) {
-        if (logEnable) log.debug "Current token is still valid. Using it. "
+    if (current_token != null) {
+        // Trust the cached token: a 401 in fetchJson clears state.jwt_token and re-enters here
+        if (logEnable) log.debug "Using the cached token"
         valid_token = current_token
     } else {
         if (logEnable) log.debug "Current token is expired. Generating a new one."
@@ -359,7 +389,7 @@ void updateCheck(){
     try {
         httpGet(params) { resp ->
             if (logEnable) log.debug " Version Checking - Response Data: ${resp.data}"
-            if (logEnable) log.debug " ${state.appName} Debug Driver info : ${resp.data.driver.EatonXComfort}"
+            if (logEnable) log.debug " ${state.appName} Debug Driver info : ${resp.data.driver.get(state.appName)}"
             Map driverInfo = resp.data.driver.get(state.appName)
             if (driverInfo != null) {
                 if (logEnable) log.debug " Debug Driver info : ${driverInfo}"
@@ -409,7 +439,7 @@ void updateSchedule(){
 }
 
 void setPolling() {
-    unschedule()
+    unschedule(pullData)
     def sec = Math.round(Math.floor(Math.random() * 60))
     def min = Math.round(Math.floor(Math.random() * settings.polling.toInteger()))
     String cron = "${sec} ${min}/${settings.polling.toInteger()} * * * ?" // every N min
