@@ -16,8 +16,8 @@
       "updateInfo": "<br>- Fix zero daily energy: read /api/v1/production + /api/v1/consumption (/api/v1/energy reports wattHoursToday 0 on newer firmware)"
     },
     "NukiWebAPI": {
-      "version": "0.0.7",
-      "updateInfo": "<br>- API token field now masked (password type)"
+      "version": "0.0.8",
+      "updateInfo": "<br>- Fewer API calls per lock action (max 5 vs 6, wider coverage)<br>- New attributes: keypadBattery (when paired), doorState + doorSensorBattery (when door sensor present)<br>- Verbose API dumps moved behind 'trace' preference; rate-limit (429) warnings"
     },
     "IthoNRG": {
       "version": "0.0.3",

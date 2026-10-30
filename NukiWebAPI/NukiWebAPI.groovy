@@ -20,7 +20,7 @@
 import groovy.transform.Field
 
 void setVersion(){
-    state.version = "0.0.7"
+    state.version = "0.0.8"
     state.appName = "NukiWebAPI"
 }
 
@@ -32,6 +32,9 @@ metadata {
         capability "Polling"
 
         attribute "lastLockStatus", "string"
+        attribute "keypadBattery", "string"
+        attribute "doorState", "string"
+        attribute "doorSensorBattery", "string"
 
         command "lock"
         command "unlock"
@@ -46,6 +49,7 @@ preferences {
         input "lock_name", "text", title: "Nuki Smart Lock Name (case sensitive)", required: true
         input "polling", "text", title: "Polling Interval (mins)", required: true, defaultValue: "15", range: 2..59
         input name: "logEnable", type: "bool", title: "Enable debug logging", defaultValue: true
+        input name: "traceEnable", type: "bool", title: "Enable verbose API response logging", defaultValue: false
     }
 }
 
@@ -103,9 +107,8 @@ void doorAction(String action) {
     Map params = prepareNukiApi(data)
     try {
         httpPost(params) { resp ->
-            if (logEnable) {
-                if (resp.data) log.debug "${resp.data}"
-            }
+            if (traceEnable && resp.data) log.debug "${resp.data}"
+            if (resp.status == 429) log.warn "Nuki API rate limit hit (HTTP 429)"
             if (resp.success) {
                 actionHandler(action)
             }
@@ -122,7 +125,8 @@ void cleanup() {
 void actionHandler(String action) {
     boolean loop_stop = false
     String end_state = _lockActions[action].end_state
-    for (i in 1..5) {
+    pauseExecution(2000) // actions never settle instantly; skip a wasted first poll
+    for (i in 1..4) {
         Map lock_data = getCurrentStatus()
         String lock_state = lock_data.lock_state
         switch (lock_state) {
@@ -139,7 +143,7 @@ void actionHandler(String action) {
                 loop_stop = true
                 break;
             case "${end_state}":
-                log.debug "Action is completed : ${action}"
+                if (logEnable) log.debug "Action is completed : ${action}"
                 loop_stop = true
                 break;
             default:
@@ -149,8 +153,9 @@ void actionHandler(String action) {
             sendLockEvents(lock_data)
             break
         }
-        pauseExecution(2000)
+        pauseExecution(3000)
     }
+    if (!loop_stop) log.warn "Action '${action}' did not reach '${end_state}' within the wait window"
 }
 
 void setLockId() {
@@ -164,9 +169,8 @@ void setLockId() {
     Map params = prepareNukiApi(data)
     try {
         httpGet(params) { resp ->
-            if (logEnable) {
-                if (resp.data) log.debug "${resp.data}"
-            }
+            if (traceEnable && resp.data) log.debug "${resp.data}"
+            if (resp.status == 429) log.warn "Nuki API rate limit hit (HTTP 429)"
             if (resp.success) {
                 locks = resp.data
             }
@@ -194,9 +198,8 @@ Map getCurrentStatus() {
         Map params = prepareNukiApi(data)
         try {
             httpGet(params) { resp ->
-                if (logEnable) {
-                    if (resp.data) log.debug "${resp.data}"
-                }
+                if (traceEnable && resp.data) log.debug "${resp.data}"
+                if (resp.status == 429) log.warn "Nuki API rate limit hit (HTTP 429)"
                 if (resp.success) {
                     lock_data = resp.data
                 }
@@ -208,11 +211,16 @@ Map getCurrentStatus() {
             Integer state_num = lock_data?.state?.state
             String state_name = _lockStatus.get(state_num)
             Integer battery_state = lock_data?.state?.batteryCharge as Integer
+            if (logEnable) log.debug "Lock state: ${state_name} (${state_num}), battery: ${battery_state}%"
             if (device.currentValue("lastLockStatus", true) != state_name) {
                 sendEvent(name: "lastLockStatus", value: state_name, isStateChange: true)
             }
             lock_data_return.battery_state = battery_state
             lock_data_return.lock_state = state_name
+            lock_data_return.keypad_paired = lock_data?.config?.keypadPaired as Boolean
+            lock_data_return.keypad_critical = lock_data?.state?.keypadBatteryCritical as Boolean
+            lock_data_return.door_state = lock_data?.state?.doorState as Integer
+            lock_data_return.doorsensor_critical = lock_data?.state?.doorsensorBatteryCritical as Boolean
         }
     }
     return lock_data_return
@@ -224,8 +232,18 @@ void sendLockEvents(Map lock_data) {
     if (lock_state == "locked" || lock_state == "unlocked") {
         sendEvent(name: "lock", value: lock_state, isStateChange: true)
     }
-    if (battery_state >= 0 && battery_state <= 100) {
+    if (battery_state != null && battery_state >= 0 && battery_state <= 100) {
         sendEvent(name: "battery", value: battery_state, unit: "%", isStateChange: true)
+    }
+    if (lock_data.keypad_paired == true && lock_data.keypad_critical != null) {
+        sendEvent(name: "keypadBattery", value: lock_data.keypad_critical ? "critical" : "ok", isStateChange: true)
+    }
+    String door_state = _doorStatus[lock_data.door_state]
+    if (door_state != null) {
+        sendEvent(name: "doorState", value: door_state, isStateChange: true)
+        if (lock_data.doorsensor_critical != null) {
+            sendEvent(name: "doorSensorBattery", value: lock_data.doorsensor_critical ? "critical" : "ok", isStateChange: true)
+        }
     }
 }
 
@@ -255,7 +273,7 @@ void updateCheck(){
     try {
         httpGet(params) { resp ->
             if (logEnable) log.debug " Version Checking - Response Data: ${resp.data}"
-            if (logEnable) log.debug " ${state.appName} Debug Driver info : ${resp.data.driver.EatonXComfort}"
+            if (logEnable) log.debug " ${state.appName} Debug Driver info : ${resp.data.driver.get(state.appName)}"
             Map driverInfo = resp.data.driver.get(state.appName)
             if (driverInfo != null) {
                 if (logEnable) log.debug " Debug Driver info : ${driverInfo}"
@@ -324,6 +342,13 @@ void setPolling() {
         253: "boot run",
         254: "motor blocked",
         255: "undefined"
+]
+
+@Field static Map _doorStatus = [
+        2: "closed",
+        3: "open",
+        4: "unknown",
+        5: "calibrating"
 ]
 
 @Field static Map _lockActions = [
